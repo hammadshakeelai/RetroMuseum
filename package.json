@@ -10,6 +10,7 @@
     "preview": "vite preview",
     "sync:runtime": "node scripts/sync-runtime.mjs",
     "predev": "npm run sync:runtime",
+    "prebuild": "npm run sync:runtime",
     "test": "vitest run",
     "hook:qa": "node scripts/hooks/qa-hook.mjs",
     "hook:redteam": "node scripts/hooks/redteam-hook.mjs",

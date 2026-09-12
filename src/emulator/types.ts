@@ -20,6 +20,7 @@ export interface VMProfile {
   initrdUrl?: string;
   cmdline?: string;
   stateUrl?: string; // Pre-saved RAM snapshot for sub-second boots (.bin / .bin.zst)
+  autorun?: string; // Typed into the guest once it is ready, e.g. "./startx.sh\n" to start a desktop
   sharedDirectory?: string;
   filesystem?: {
     basefsUrl?: string;

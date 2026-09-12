@@ -42,8 +42,9 @@ export const PROFILES: VMProfile[] = [
     category: "arch",
     mode: "gui",
     description:
-      "Arch Linux 32 with Xorg, a lightweight window manager, NetSurf browser, and X11 accessories. Resumes to a root shell; run ./startx.sh to start the Xorg desktop.",
-    tagline: "Xorg Desktop via ./startx.sh • 1 GB RAM • On-Demand Streaming",
+      "Arch Linux 32 with Xorg, a lightweight window manager, NetSurf browser, and X11 accessories. Resumes a saved session and starts the Xorg desktop automatically.",
+    tagline: "Xorg Desktop • Starts Automatically • 1 GB RAM",
+    autorun: "./startx.sh\n",
     memorySize: 1024 * 1024 * 1024,
     vgaMemorySize: 32 * 1024 * 1024,
     stateUrl: "https://i.copy.sh/arch_state-v3.bin.zst",

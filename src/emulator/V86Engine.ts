@@ -231,6 +231,16 @@ export class V86Engine {
         this.startStatsMonitor();
       });
 
+      // v86 fires emulator-ready before it restores initial_state, so keystrokes sent then are
+      // wiped by the restore. emulator-loaded comes after the restore and after the CPU starts.
+      // A user's own snapshot is left exactly as they saved it.
+      if (this.profile.autorun && !customSnapshotBuffer) {
+        const autorun = this.profile.autorun;
+        this.instance.add_listener("emulator-loaded", () => {
+          if (!this.disposed) sendText(this.instance, autorun);
+        });
+      }
+
       this.instance.add_listener("emulator-stopped", () => {
         if (!this.disposed && this.status === "running") {
           this.setStatus("paused");

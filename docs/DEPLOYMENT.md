@@ -79,7 +79,7 @@ Run after every deploy that changes emulator, profile, or build code.
 | Task | Status |
 | --- | --- |
 | Add a `ci.yml` that runs lint, test, and build on `pull_request` | Done in [#2](https://github.com/hammadshakeelai/WebOS/pull/2). The check is named "Lint, test, and build". |
-| Protect `master`: pull requests only, CI must pass, no force-pushes or deletion, admins included | Waiting until [#1](https://github.com/hammadshakeelai/WebOS/pull/1)–[#4](https://github.com/hammadshakeelai/WebOS/pull/4) merge, so those PRs aren't locked out. |
+| Protect `master`: pull requests only, CI must pass, no force-pushes or deletion, admins included | Done. Turned on after [#1](https://github.com/hammadshakeelai/WebOS/pull/1)–[#4](https://github.com/hammadshakeelai/WebOS/pull/4) merged. Branches don't need to be up to date with `master` before merging. |
 | Move the GitHub Actions in `deploy.yml` to Node 24 releases | Done in [#2](https://github.com/hammadshakeelai/WebOS/pull/2): checkout v7, setup-node v7, configure-pages v6, upload-pages-artifact v5, deploy-pages v5. |
 | Enable Dependabot for `npm` and `github-actions` | Done in [#2](https://github.com/hammadshakeelai/WebOS/pull/2). |
 | Add a `prebuild` script that runs `sync:runtime` | Done in [#2](https://github.com/hammadshakeelai/WebOS/pull/2). |
@@ -88,7 +88,7 @@ Run after every deploy that changes emulator, profile, or build code.
 | GPL source for the bundled kernel | Upstream source links added in [#4](https://github.com/hammadshakeelai/WebOS/pull/4). The image's exact build configuration was never published, so this stays open until the image is replaced (next row). |
 | Build our own Micro Linux kernel | Not started. Add a workflow that builds [chschnell/v86-buildroot](https://github.com/chschnell/v86-buildroot) at a pinned release and publishes the `bzImage` with its full source as a GitHub Release, then bundle that image. Retest `/mnt` file sharing afterwards. |
 | Test the 3 untested profiles | Done. Damn Small Linux reaches its X desktop. Arch Desktop resumes to a shell and needs `./startx.sh` for Xorg (profile text corrected in [#4](https://github.com/hammadshakeelai/WebOS/pull/4)). Arch Cold Boot runs its OpenRC startup but takes more than 2 minutes; the login prompt isn't confirmed yet. |
-| Start Xorg automatically in the Arch Desktop profile | Not started. Type `./startx.sh` into the guest after the snapshot resumes, then confirm the desktop appears. |
+| Start Xorg automatically in the Arch Desktop profile | Done. The profile types `./startx.sh` once the snapshot resumes, and the desktop (window manager, taskbar, clock) appears. It isn't typed when you restore your own snapshot. |
 | Fix the `linux4-cli` mount error | Open. Adding `filesystem: {}` and `sharedDirectory: "/mnt"` changed the error but didn't fix it: the guest still reports no `host9p` device. The change wasn't kept, because uploads would look successful but never reach the guest. Cosmetic: the prompt still works. |
 | Run `scripts/test-all-os.mjs` in CI | Not started. It needs headless Chrome on Linux (set `CHROME_PATH`), then it can run nightly against the live site. |
 

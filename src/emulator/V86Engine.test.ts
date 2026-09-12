@@ -20,6 +20,7 @@ const fake = vi.hoisted(() => ({
   read_file: vi.fn(async () => new Uint8Array([1, 2, 3])),
   keyboard_set_enabled: vi.fn(),
   mouse_set_enabled: vi.fn(),
+  keyboard_send_text: vi.fn(),
   screen_make_screenshot: vi.fn(() => ({ src: "data:image/png;base64,test" })),
 }));
 
@@ -186,6 +187,22 @@ describe("VM lifecycle", () => {
     await engine.destroy();
     fake.listeners.get("emulator-ready")?.();
     expect(engine.getStatus()).toBe("idle");
+  });
+
+  it("types the profile's autorun command only after the initial state is loaded", async () => {
+    await boot({ autorun: "./startx.sh\n" });
+    // emulator-ready fires before v86 restores initial_state, so typing then would be lost.
+    expect(fake.keyboard_send_text).not.toHaveBeenCalled();
+    fake.listeners.get("emulator-loaded")?.();
+    expect(fake.keyboard_send_text).toHaveBeenCalledWith("./startx.sh\n");
+  });
+
+  it("does not autorun when starting from a restored snapshot", async () => {
+    engine = new V86Engine({ ...profile, autorun: "./startx.sh\n" }, { mode: "offline", channelName: "test" });
+    await engine.start(container, makeSnapshot(16));
+    fake.listeners.get("emulator-ready")?.();
+    fake.listeners.get("emulator-loaded")?.();
+    expect(fake.keyboard_send_text).not.toHaveBeenCalled();
   });
 });
 

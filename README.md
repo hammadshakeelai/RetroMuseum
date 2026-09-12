@@ -30,14 +30,14 @@ Run real operating systems directly inside your browser—**no backend servers, 
 | :--- | :---: | :--- | :--- | :---: |
 | **Micro Linux** (default) | CLI | Bundled Linux 5.6 kernel + BusyBox | This site (works offline) | ✅ |
 | **Arch Linux 32 (Terminal)** | CLI | Memory snapshot resume + 9P filesystem | i.copy.sh | ✅ |
-| **Arch Linux 32 (Desktop)** | GUI | Memory snapshot resume + 9P filesystem | i.copy.sh | — |
-| **Arch Linux 32 (Cold Boot 9P)** | CLI | Full kernel boot, root on 9P | i.copy.sh | — |
-| **Damn Small Linux 4.11** | GUI | 53 MB live CD | i.copy.sh | — |
+| **Arch Linux 32 (Desktop)** | GUI | Memory snapshot resume + 9P filesystem; run `./startx.sh` for Xorg | i.copy.sh | ✅ shell |
+| **Arch Linux 32 (Cold Boot 9P)** | CLI | Full kernel boot, root on 9P (slow: 2+ minutes) | i.copy.sh | ⏳ |
+| **Damn Small Linux 4.11** | GUI | 53 MB live CD | i.copy.sh | ✅ |
 | **Linux 4.x Minimal Live CD** | CLI | 7 MB live CD | i.copy.sh | ✅ |
 | **KolibriOS** | GUI | 1.44 MB floppy | i.copy.sh | ✅ |
 | **FreeDOS 1.3** | CLI | 720 KB floppy | i.copy.sh | ✅ |
 
-✅ = booted to a shell prompt or desktop from a production build (2026-09-13). — = not yet tested.
+✅ = booted to a shell prompt or desktop from a production build (2026-09-13). ⏳ = boot runs, but a login prompt hasn't been confirmed yet.
 
 ### Bring your own image
 

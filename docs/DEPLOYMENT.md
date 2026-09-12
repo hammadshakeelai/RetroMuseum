@@ -17,6 +17,8 @@
 | Deploy branch | `master` | Allowed through the `github-pages` environment's branch policy (see Phase 1, step 3). |
 | OS images | Keep loading from `i.copy.sh` for v1 | Mirroring is Phase 3. |
 | License | MIT, plus [third-party notices](../THIRD_PARTY_NOTICES.md) | |
+| Branch protection | Pull requests only, CI must pass, admins included | Every change to the live site gets a green CI run first. |
+| Micro Linux kernel | Relabel as Linux 5.6 now; build our own image later | The bundled image's exact build configuration was never published, so only a rebuild fully meets the GPL. |
 
 ## How a deploy works
 
@@ -68,25 +70,27 @@ Run after every deploy that changes emulator, profile, or build code.
 - [x] **KolibriOS** reaches its desktop (checks graphics mode)
 - [x] **Snapshots**: save one, reload the page, restore it
 - [x] **Cyber Lab Mode** shows Station 1 and Station 2
-- [x] **Kali** opens the Mount ISO dialog instead of trying to boot
 - [x] **Mount ISO** rejects an `http://` URL (the site is HTTPS, so mixed content is blocked)
 
 ---
 
-## Phase 2: Hardening (recommended next)
+## Phase 2: Hardening (in progress)
 
-| Task | Why |
+| Task | Status |
 | --- | --- |
-| Add a `ci.yml` that runs lint, test, and build on `pull_request` | Today checks only run on pushes to `master`, and those pushes also deploy. PRs get no feedback. |
-| Protect `master`: require the CI check to pass | Stops a broken commit from deploying. |
-| Update the GitHub Actions in `deploy.yml` | The first run warned that `checkout@v4`, `setup-node@v4`, `configure-pages@v5`, `upload-pages-artifact@v3`, and `deploy-pages@v4` target the deprecated Node.js 20 and are being forced onto Node 24. Move to releases built for Node 24. |
-| Enable Dependabot for `npm` and `github-actions` | Keeps v86, React, Vite, and the action versions current. |
-| Add a `prebuild` script that runs `sync:runtime` | `public/v86/` is only refreshed by `npm run dev`. Syncing before build keeps it in step with `package-lock.json`. |
-| Fix the `linux4-cli` mount error | The guest always tries to mount a 9P share at `/mnt`, but the profile defines no filesystem, so boot prints a mount error. Try adding `filesystem: {}` and `sharedDirectory: "/mnt"`, then confirm the error is gone. It's cosmetic: the prompt still works. |
-| Correct the Micro Linux label | The app calls it "Micro Linux 6.8", but `public/images/buildroot-bzimage.bin` is Linux 5.6.15 (built 2020). Update the name and description in `src/profiles/index.ts`, then the tests and scripts that match on that name. |
-| Publish GPL source for the bundled kernel | The repo redistributes a GPL-2.0 kernel and BusyBox binary. GPL recipients are entitled to the exact corresponding source. Link it from `THIRD_PARTY_NOTICES.md`, or rebuild the image from a Buildroot config you commit. |
-| Test the 3 untested profiles | Arch Linux 32 (Desktop), Arch Linux 32 (Cold Boot 9P), Damn Small Linux. |
-| Run `scripts/test-all-os.mjs` in CI | It already sweeps 7 profiles. It needs headless Chrome on Linux (set `CHROME_PATH`), then it can run nightly against the live site. |
+| Add a `ci.yml` that runs lint, test, and build on `pull_request` | Done in [#2](https://github.com/hammadshakeelai/WebOS/pull/2). The check is named "Lint, test, and build". |
+| Protect `master`: pull requests only, CI must pass, no force-pushes or deletion, admins included | Done. Turned on after [#1](https://github.com/hammadshakeelai/WebOS/pull/1)–[#4](https://github.com/hammadshakeelai/WebOS/pull/4) merged. Branches don't need to be up to date with `master` before merging. |
+| Move the GitHub Actions in `deploy.yml` to Node 24 releases | Done in [#2](https://github.com/hammadshakeelai/WebOS/pull/2): checkout v7, setup-node v7, configure-pages v6, upload-pages-artifact v5, deploy-pages v5. |
+| Enable Dependabot for `npm` and `github-actions` | Done in [#2](https://github.com/hammadshakeelai/WebOS/pull/2). |
+| Add a `prebuild` script that runs `sync:runtime` | Done in [#2](https://github.com/hammadshakeelai/WebOS/pull/2). |
+| Stop large VM screens from being cropped | Done in [#3](https://github.com/hammadshakeelai/WebOS/pull/3). KolibriOS's 1024×768 desktop now scales down to fit the viewport. |
+| Correct the Micro Linux label | Done in [#4](https://github.com/hammadshakeelai/WebOS/pull/4): renamed to Linux 5.6, the version actually bundled. |
+| GPL source for the bundled kernel | Upstream source links added in [#4](https://github.com/hammadshakeelai/WebOS/pull/4). The image's exact build configuration was never published, so this stays open until the image is replaced (next row). |
+| Build our own Micro Linux kernel | Not started. Add a workflow that builds [chschnell/v86-buildroot](https://github.com/chschnell/v86-buildroot) at a pinned release and publishes the `bzImage` with its full source as a GitHub Release, then bundle that image. Retest `/mnt` file sharing afterwards. |
+| Test the 3 untested profiles | Done. Damn Small Linux reaches its X desktop. Arch Desktop resumes to a shell and needs `./startx.sh` for Xorg (profile text corrected in [#4](https://github.com/hammadshakeelai/WebOS/pull/4)). Arch Cold Boot runs its OpenRC startup but takes more than 2 minutes; the login prompt isn't confirmed yet. |
+| Start Xorg automatically in the Arch Desktop profile | Done. The profile types `./startx.sh` once the snapshot resumes, and the desktop (window manager, taskbar, clock) appears. It isn't typed when you restore your own snapshot. |
+| Fix the `linux4-cli` mount error | Open. Adding `filesystem: {}` and `sharedDirectory: "/mnt"` changed the error but didn't fix it: the guest still reports no `host9p` device. The change wasn't kept, because uploads would look successful but never reach the guest. Cosmetic: the prompt still works. |
+| Run `scripts/test-all-os.mjs` in CI | Not started. It needs headless Chrome on Linux (set `CHROME_PATH`), then it can run nightly against the live site. |
 
 ## Phase 3: Independence from i.copy.sh
 

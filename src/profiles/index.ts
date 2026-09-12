@@ -1,3 +1,4 @@
+import { assetUrl } from "../emulator/runtime";
 import type { VMProfile } from "../emulator/types";
 
 export const PROFILES: VMProfile[] = [
@@ -11,8 +12,10 @@ export const PROFILES: VMProfile[] = [
     tagline: "Local 5MB Kernel • Instant Boot • Zero Network Dependency",
     memorySize: 128 * 1024 * 1024,
     vgaMemorySize: 4 * 1024 * 1024,
-    bzimageUrl: "/images/buildroot-bzimage.bin",
-    cmdline: "tsc=reliable mitigations=off random.trust_cpu=on quiet",
+    filesystem: {},
+    sharedDirectory: "/mnt",
+    bzimageUrl: assetUrl("images/buildroot-bzimage.bin"),
+    cmdline: "tsc=reliable mitigations=off random.trust_cpu=on console=ttyS0 console=tty0",
     netDevice: "virtio",
     recommended: true,
   },
@@ -64,6 +67,32 @@ export const PROFILES: VMProfile[] = [
     recommended: true,
   },
   {
+    id: "kolibri-gui",
+    name: "KolibriOS (Floppy GUI)",
+    category: "kolibri",
+    mode: "gui",
+    description:
+      "Tiny, blazing-fast 32-bit operating system written completely in x86 assembly. Features rich graphical desktop, games, file manager, text editors, and demo apps in a 1.44MB floppy image.",
+    tagline: "Sub-Second Boot • Written in ASM • 1.4MB Floppy • Built-in Apps",
+    memorySize: 64 * 1024 * 1024,
+    vgaMemorySize: 4 * 1024 * 1024,
+    fdaUrl: "https://i.copy.sh/kolibri.img",
+    recommended: true,
+  },
+  {
+    id: "freedos-cli",
+    name: "FreeDOS 1.3 (Floppy CLI)",
+    category: "freedos",
+    mode: "cli",
+    description:
+      "Complete, open-source DOS-compatible operating system. Classic MS-DOS/PC-DOS command line environment, batch scripts, and retro utility execution.",
+    tagline: "Classic DOS CLI • 720KB Floppy • Instant Boot • Open Source",
+    memorySize: 32 * 1024 * 1024,
+    vgaMemorySize: 2 * 1024 * 1024,
+    fdaUrl: "https://i.copy.sh/freedos722.img",
+    recommended: true,
+  },
+  {
     id: "linux4-cli",
     name: "Linux 4.x Minimal Live CD",
     category: "micro",
@@ -82,7 +111,7 @@ export const PROFILES: VMProfile[] = [
     category: "arch",
     mode: "cli",
     description:
-      "Cold-boots Arch Linux 32 directly from BIOS through the Linux kernel and OpenRC init sequence using root-on-9P streaming.",
+      "Cold-boots Arch Linux 32 directly from BIOS through the Linux kernel and OpenRC init sequence using root-on-9P streaming. (Note: For sub-second interactive shell, choose Arch Linux 32 Terminal with instant state resume).",
     tagline: "Kernel Boot Sequence • OpenRC Init • Raw System Log",
     memorySize: 512 * 1024 * 1024,
     vgaMemorySize: 8 * 1024 * 1024,

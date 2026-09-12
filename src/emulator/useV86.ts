@@ -28,23 +28,30 @@ export function useV86({ initialProfile, initialNetwork }: UseV86Props) {
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const engineRef = useRef<V86Engine | null>(null);
+  const generation = useRef(0);
+  const pendingLogs = useRef("");
 
   const startVM = useCallback(
     async (targetProfile?: VMProfile, customBuffer?: ArrayBuffer) => {
       const activeProfile = targetProfile || profile;
       if (!containerRef.current) return;
 
+      const request = ++generation.current;
       setError(null);
+      setSerialLogs("");
+      pendingLogs.current = "";
+      setStatus("booting");
       if (engineRef.current) {
         await engineRef.current.destroy();
       }
 
+      if (request !== generation.current || !containerRef.current) return;
       const engine = new V86Engine(activeProfile, networkConfig, {
-        onStatusChange: (newStatus) => setStatus(newStatus),
-        onStatsUpdate: (newStats) => setStats(newStats),
-        onError: (err) => setError(err.message),
+        onStatusChange: (newStatus) => { if (request === generation.current) setStatus(newStatus); },
+        onStatsUpdate: (newStats) => { if (request === generation.current) setStats(newStats); },
+        onError: (err) => { if (request === generation.current) setError(err.message); },
         onSerialOutput: (char) => {
-          setSerialLogs((prev) => (prev.length > 50000 ? prev.slice(10000) + char : prev + char));
+          if (request === generation.current) pendingLogs.current = (pendingLogs.current + char).slice(-50_000);
         },
       });
 
@@ -91,7 +98,7 @@ export function useV86({ initialProfile, initialNetwork }: UseV86Props) {
 
   const restoreVMSnapshot = useCallback(
     async (buffer: ArrayBuffer) => {
-      if (engineRef.current && status !== "idle") {
+      if (engineRef.current && (status === "running" || status === "paused")) {
         await engineRef.current.restoreState(buffer);
       } else {
         await startVM(profile, buffer);
@@ -120,9 +127,8 @@ export function useV86({ initialProfile, initialNetwork }: UseV86Props) {
   }, []);
 
   const uploadGuestFile = useCallback(async (path: string, data: Uint8Array) => {
-    if (engineRef.current) {
-      await engineRef.current.createFileInGuest(path, data);
-    }
+    if (!engineRef.current) throw new Error("Power on a VM before uploading files.");
+    await engineRef.current.createFileInGuest(path, data);
   }, []);
 
   const switchProfile = useCallback(
@@ -142,14 +148,24 @@ export function useV86({ initialProfile, initialNetwork }: UseV86Props) {
     [startVM]
   );
 
+  const dispose = useCallback(() => {
+    ++generation.current;
+    void engineRef.current?.destroy();
+  }, []);
+
   // Cleanup on unmount
   useEffect(() => {
+    const timer = window.setInterval(() => {
+      if (!pendingLogs.current) return;
+      const chunk = pendingLogs.current;
+      pendingLogs.current = "";
+      setSerialLogs(prev => (prev + chunk).slice(-50_000));
+    }, 100);
     return () => {
-      if (engineRef.current) {
-        engineRef.current.destroy();
-      }
+      clearInterval(timer);
+      dispose();
     };
-  }, []);
+  }, [dispose]);
 
   return {
     profile,
@@ -172,6 +188,6 @@ export function useV86({ initialProfile, initialNetwork }: UseV86Props) {
     takeScreenshot,
     uploadGuestFile,
     switchProfile,
-    clearSerialLogs: () => setSerialLogs(""),
+    clearSerialLogs: () => { pendingLogs.current = ""; setSerialLogs(""); },
   };
 }

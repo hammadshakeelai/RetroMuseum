@@ -1,5 +1,7 @@
+import { Dialog } from "./Dialog";
 import React, { useState } from "react";
 import { X, Radio, Wifi, Globe, Shield, Activity, RefreshCw } from "lucide-react";
+import { validateChannelName, validateRelayUrl } from "../../emulator/security";
 import type { NetworkConfig, NetworkMode, VMStats } from "../../emulator/types";
 
 interface NetworkModalProps {
@@ -25,10 +27,31 @@ export const NetworkModal: React.FC<NetworkModalProps> = ({
 
   const handleApply = (e: React.FormEvent) => {
     e.preventDefault();
+    let validatedChannel = channelName.trim();
+    let validatedRelay = relayUrl.trim();
+
+    if (mode === "inbrowser") {
+      try {
+        validatedChannel = validateChannelName(channelName);
+      } catch (err) {
+        alert(err instanceof Error ? err.message : "Enter a valid mesh channel name.");
+        return;
+      }
+    }
+
+    if (mode === "wsproxy") {
+      try {
+        validatedRelay = validateRelayUrl(relayUrl);
+      } catch (err) {
+        alert(err instanceof Error ? err.message : "Enter a valid WebSocket URL (wss:// on HTTPS pages).");
+        return;
+      }
+    }
+
     onUpdateConfig({
       mode,
-      channelName,
-      relayUrl,
+      channelName: validatedChannel,
+      relayUrl: validatedRelay,
     });
     onClose();
   };
@@ -42,7 +65,7 @@ export const NetworkModal: React.FC<NetworkModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <Dialog label="Network" onClose={onClose}>
       <div className="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-lg overflow-hidden shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800">
@@ -51,6 +74,7 @@ export const NetworkModal: React.FC<NetworkModalProps> = ({
             <h2 className="text-sm font-bold text-white tracking-tight">Virtual Network Settings</h2>
           </div>
           <button
+            aria-label="Close dialog"
             onClick={onClose}
             className="p-1 rounded-md text-slate-400 hover:text-white hover:bg-slate-800 transition"
           >
@@ -60,6 +84,7 @@ export const NetworkModal: React.FC<NetworkModalProps> = ({
 
         {/* Content */}
         <form onSubmit={handleApply} className="p-5 space-y-4">
+          <p className="text-xs text-amber-300">Changes apply on the next Power On or Factory Reset. A warm reboot keeps the current network. Mesh peers need distinct static IP addresses on the same subnet.</p>
           {/* Traffic Monitor */}
           <div className="grid grid-cols-2 gap-3 p-3 bg-slate-950/70 border border-slate-800 rounded-lg">
             <div className="flex items-center gap-2.5">
@@ -137,7 +162,7 @@ export const NetworkModal: React.FC<NetworkModalProps> = ({
                   <span>Air-Gapped Offline Mode</span>
                 </div>
                 <p className="text-[11px] text-slate-400 mt-1 leading-normal">
-                  Completely isolates the VM from any network interface.
+                  Disconnects guest network traffic. Remote boot images and streamed files still require an internet connection.
                 </p>
               </div>
             </label>
@@ -203,7 +228,8 @@ export const NetworkModal: React.FC<NetworkModalProps> = ({
           <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
             <button
               type="button"
-              onClick={onClose}
+              aria-label="Close dialog"
+            onClick={onClose}
               className="px-3 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition"
             >
               Cancel
@@ -217,6 +243,6 @@ export const NetworkModal: React.FC<NetworkModalProps> = ({
           </div>
         </form>
       </div>
-    </div>
+    </Dialog>
   );
 };

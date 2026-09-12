@@ -3,7 +3,7 @@
 export interface VMProfile {
   id: string;
   name: string;
-  category: "arch" | "ubuntu" | "kali" | "blackarch" | "micro" | "dsl" | "custom";
+  category: "arch" | "ubuntu" | "kali" | "blackarch" | "micro" | "dsl" | "kolibri" | "freedos" | "custom";
   mode: "cli" | "gui";
   description: string;
   tagline: string;
@@ -20,6 +20,7 @@ export interface VMProfile {
   initrdUrl?: string;
   cmdline?: string;
   stateUrl?: string; // Pre-saved RAM snapshot for sub-second boots (.bin / .bin.zst)
+  sharedDirectory?: string;
   filesystem?: {
     basefsUrl?: string;
     baseurl?: string;

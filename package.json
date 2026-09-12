@@ -6,8 +6,16 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "lint": "oxlint",
-    "preview": "vite preview"
+    "lint": "oxlint src scripts vite.config.ts --deny-warnings",
+    "preview": "vite preview",
+    "sync:runtime": "node scripts/sync-runtime.mjs",
+    "predev": "npm run sync:runtime",
+    "test": "vitest run",
+    "hook:qa": "node scripts/hooks/qa-hook.mjs",
+    "hook:redteam": "node scripts/hooks/redteam-hook.mjs",
+    "hook:user": "node scripts/hooks/user-hook.mjs",
+    "hook:developer": "node scripts/hooks/developer-hook.mjs",
+    "hook:all": "node scripts/hooks/run-all.mjs"
   },
   "dependencies": {
     "clsx": "^2.1.1",
@@ -23,9 +31,15 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
+    "fake-indexeddb": "^6.2.5",
+    "happy-dom": "^20.14.5",
     "oxlint": "^1.81.0",
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.2",
-    "vite": "^8.3.0"
+    "vite": "^8.3.0",
+    "vitest": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=22.12.0"
   }
 }

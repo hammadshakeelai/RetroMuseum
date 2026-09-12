@@ -1,7 +1,13 @@
-import { V86 } from "v86";
+import type { V86 } from "v86";
+import { assetUrl, loadRuntime } from "./runtime";
 import type { VMProfile, VMStatus, VMStats, NetworkConfig } from "./types";
 import { NetworkBridge } from "./networking";
 import { sendSpecialKey, sendText } from "./clipboard";
+import {
+  validateSnapshotBuffer,
+  sanitizeGuestPath,
+  MAX_GUEST_FILE_SIZE,
+} from "./security";
 
 export interface V86EngineCallbacks {
   onStatusChange?: (status: VMStatus) => void;
@@ -16,12 +22,17 @@ export class V86Engine {
   private readonly callbacks: V86EngineCallbacks;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private instance: any = null;
+  private instance: V86 | null = null;
   private status: VMStatus = "idle";
   private networkBridge: NetworkBridge | null = null;
   private statsInterval: number | null = null;
   private startTime = 0;
   private totalUptime = 0;
+  private lastCounter = 0;
+  private lastSample = 0;
+  private disposed = false;
+  private cleanupInput?: () => void;
+  private bootTimer?: ReturnType<typeof setTimeout>;
 
   constructor(
     profile: VMProfile,
@@ -38,6 +49,12 @@ export class V86Engine {
   }
 
   private setStatus(status: VMStatus) {
+    if (this.status === "running") this.totalUptime += Date.now() - this.startTime;
+    if (status === "running") {
+      this.startTime = Date.now();
+      this.lastSample = Date.now();
+      this.lastCounter = this.instance?.get_instruction_counter() ?? 0;
+    }
     this.status = status;
     if (this.callbacks.onStatusChange) {
       this.callbacks.onStatusChange(status);
@@ -48,10 +65,15 @@ export class V86Engine {
     if (this.instance) {
       await this.destroy();
     }
+    this.disposed = false;
+    this.totalUptime = 0;
 
     this.setStatus("booting");
 
     try {
+      if (this.profile.needsCustomMedia) throw new Error("This profile requires boot media. Use Mount ISO to select a 32-bit image.");
+      const V86Constructor = await loadRuntime();
+      if (this.disposed) return;
       // Ensure screen container has expected sub-elements for v86 ScreenAdapter
       screenContainer.innerHTML = "";
       const textDiv = document.createElement("div");
@@ -69,21 +91,23 @@ export class V86Engine {
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const options: any = {
-        wasm_path: "/v86/v86.wasm",
+        wasm_path: assetUrl("v86/v86.wasm"),
         memory_size: this.profile.memorySize,
         vga_memory_size: this.profile.vgaMemorySize,
         screen_container: screenContainer,
         bios: {
-          url: this.profile.biosUrl || "/bios/seabios.bin",
+          url: this.profile.biosUrl || assetUrl("bios/seabios.bin"),
         },
         vga_bios: {
-          url: this.profile.vgaBiosUrl || "/bios/vgabios.bin",
+          url: this.profile.vgaBiosUrl || assetUrl("bios/vgabios.bin"),
         },
         autostart: true,
+        net_device: { type: this.profile.netDevice || "ne2k" },
       };
 
       // Custom restored snapshot from IndexedDB/File takes priority
       if (customSnapshotBuffer) {
+        validateSnapshotBuffer(customSnapshotBuffer);
         options.initial_state = {
           buffer: customSnapshotBuffer,
         };
@@ -163,15 +187,38 @@ export class V86Engine {
         }
       }
 
-      // Instantiate V86 (either from window.V86 or imported)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const V86Constructor = (window as any).V86 || V86;
-      if (!V86Constructor) {
-        throw new Error("v86 emulator library not found. Please verify libv86 is loaded.");
-      }
-
-
       this.instance = new V86Constructor(options);
+      const instance = this.instance;
+      const updateInput = () => {
+        const focused = screenContainer.contains(document.activeElement);
+        instance.keyboard_set_enabled(focused);
+        instance.mouse_set_enabled(focused);
+      };
+      const focusScreen = () => screenContainer.focus();
+      const releaseInput = () => {
+        instance.keyboard_set_enabled(false);
+        instance.mouse_set_enabled(false);
+      };
+      document.addEventListener("focusin", updateInput);
+      document.addEventListener("focusout", updateInput);
+      window.addEventListener?.("blur", releaseInput);
+      screenContainer.addEventListener("pointerdown", focusScreen);
+      updateInput();
+      this.cleanupInput = () => {
+        document.removeEventListener("focusin", updateInput);
+        document.removeEventListener("focusout", updateInput);
+        window.removeEventListener?.("blur", releaseInput);
+        screenContainer.removeEventListener("pointerdown", focusScreen);
+      };
+      const fail = (message: string) => {
+        if (this.disposed) return;
+        void this.destroy().then(() => {
+          this.setStatus("error");
+          this.callbacks.onError?.(new Error(message));
+        });
+      };
+      this.bootTimer = setTimeout(() => fail("Boot timed out. Check the image URL and connection, then retry."), 120_000);
+      instance.add_listener("download-error", (event) => fail(`Unable to load ${event.file_name}. Check the URL and CORS permissions.`));
 
       // Setup in-browser BroadcastChannel mesh network
       this.networkBridge = new NetworkBridge(this.networkConfig);
@@ -179,24 +226,27 @@ export class V86Engine {
 
       // Bind emulator events
       this.instance.add_listener("emulator-ready", () => {
+        if (this.disposed) return;
+        clearTimeout(this.bootTimer);
         this.setStatus("running");
-        this.startTime = Date.now();
         this.startStatsMonitor();
       });
 
       this.instance.add_listener("emulator-stopped", () => {
-        if (this.status !== "saving" && this.status !== "restoring") {
+        if (!this.disposed && this.status === "running") {
           this.setStatus("paused");
         }
       });
 
-      this.instance.add_listener("serial0-output-char", (char: string) => {
+      this.instance.add_listener("serial0-output-byte", (byte: number) => {
+        const char = String.fromCharCode(byte);
         if (this.callbacks.onSerialOutput) {
           this.callbacks.onSerialOutput(char);
         }
       });
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));
+      await this.destroy();
       this.setStatus("error");
       if (this.callbacks.onError) {
         this.callbacks.onError(error);
@@ -222,34 +272,39 @@ export class V86Engine {
   public restart() {
     if (this.instance) {
       this.instance.restart();
+      this.instance.run();
       this.setStatus("running");
     }
   }
 
   public async saveState(): Promise<ArrayBuffer> {
-    if (!this.instance) throw new Error("Emulator is not running");
+    if (!this.instance || !["running", "paused"].includes(this.status)) throw new Error("VM must be running or paused");
     const prevStatus = this.status;
     this.setStatus("saving");
     try {
-      const buffer = await this.instance.save_state();
+      await this.instance.stop();
+      const state = await this.instance.save_state();
+      validateSnapshotBuffer(state);
+      return state;
+    } finally {
+      if (prevStatus === "running") this.instance.run();
       this.setStatus(prevStatus);
-      return buffer;
-    } catch (e) {
-      this.setStatus(prevStatus);
-      throw e;
     }
   }
 
   public async restoreState(buffer: ArrayBuffer): Promise<void> {
     if (!this.instance) throw new Error("Emulator is not running");
+    validateSnapshotBuffer(buffer);
+    const wasRunning = this.status === "running";
     this.setStatus("restoring");
     try {
       await this.instance.stop();
       await this.instance.restore_state(buffer);
-      await this.instance.run();
-      this.setStatus("running");
+      if (wasRunning) this.instance.run();
+      this.setStatus(wasRunning ? "running" : "paused");
     } catch (e) {
       this.setStatus("error");
+      this.callbacks.onError?.(e instanceof Error ? e : new Error(String(e)));
       throw e;
     }
   }
@@ -265,7 +320,7 @@ export class V86Engine {
   public captureScreenshot(): string | null {
     if (!this.instance) return null;
     try {
-      const img = this.instance.make_screenshot();
+      const img = this.instance.screen_make_screenshot() as HTMLImageElement | null;
       return img?.src || null;
     } catch (e) {
       console.warn("Screenshot capture error:", e);
@@ -275,8 +330,17 @@ export class V86Engine {
 
   public async createFileInGuest(filePath: string, data: Uint8Array): Promise<void> {
     if (!this.instance) throw new Error("Emulator not initialized");
-    if (typeof this.instance.create_file === "function") {
-      await this.instance.create_file(filePath, data);
+    if (!data || !(data instanceof Uint8Array)) {
+      throw new Error("Invalid file data: expected Uint8Array");
+    }
+    if (data.byteLength > MAX_GUEST_FILE_SIZE) {
+      throw new Error(
+        `File size (${(data.byteLength / (1024 * 1024)).toFixed(1)} MB) exceeds maximum allowed upload size (${MAX_GUEST_FILE_SIZE / (1024 * 1024)} MB)`
+      );
+    }
+    if (this.profile.filesystem) {
+      const { destination } = sanitizeGuestPath(filePath, this.profile.sharedDirectory);
+      await this.instance.create_file(destination, data);
     } else {
       throw new Error("create_file not supported on this VM profile (requires 9P)");
     }
@@ -284,8 +348,9 @@ export class V86Engine {
 
   public async readFileFromGuest(filePath: string): Promise<Uint8Array> {
     if (!this.instance) throw new Error("Emulator not initialized");
-    if (typeof this.instance.read_file === "function") {
-      return await this.instance.read_file(filePath);
+    if (this.profile.filesystem) {
+      const { destination } = sanitizeGuestPath(filePath, this.profile.sharedDirectory);
+      return await this.instance.read_file(destination);
     } else {
       throw new Error("read_file not supported on this VM profile (requires 9P)");
     }
@@ -296,8 +361,12 @@ export class V86Engine {
     this.statsInterval = window.setInterval(() => {
       if (!this.instance || this.status !== "running") return;
 
-      const ips = this.instance.get_instruction_counter ? this.instance.get_instruction_counter() : 0;
-      const uptime = Math.floor((Date.now() - this.startTime) / 1000) + this.totalUptime;
+      const now = Date.now();
+      const counter = this.instance.get_instruction_counter() >>> 0;
+      const ips = ((counter - this.lastCounter) >>> 0) * 1000 / Math.max(1, now - this.lastSample);
+      this.lastCounter = counter;
+      this.lastSample = now;
+      const uptime = Math.floor((now - this.startTime + this.totalUptime) / 1000);
 
       const stats: VMStats = {
         ips,
@@ -323,6 +392,9 @@ export class V86Engine {
   }
 
   public async destroy() {
+    this.disposed = true;
+    clearTimeout(this.bootTimer);
+    this.cleanupInput?.();
     this.stopStatsMonitor();
     if (this.networkBridge) {
       this.networkBridge.destroy();

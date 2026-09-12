@@ -1,4 +1,9 @@
 import type { NetworkConfig } from "./types";
+import {
+  MIN_ETHERNET_FRAME_SIZE,
+  MAX_ETHERNET_FRAME_SIZE,
+  validateChannelName,
+} from "./security";
 
 export class NetworkBridge {
   private config: NetworkConfig;
@@ -20,14 +25,43 @@ export class NetworkBridge {
 
   private setup() {
     if (this.config.mode === "inbrowser") {
-      this.broadcastChannel = new BroadcastChannel(this.config.channelName || "webos-lab-mesh");
-      this.broadcastChannel.onmessage = (event) => {
-        if (event.data instanceof Uint8Array || event.data instanceof ArrayBuffer) {
-          const packet = event.data instanceof ArrayBuffer ? new Uint8Array(event.data) : event.data;
+      let channelName = "webos-lab-mesh";
+      try {
+        channelName = validateChannelName(this.config.channelName || "webos-lab-mesh");
+      } catch {
+        channelName = "webos-lab-mesh";
+      }
+
+      this.broadcastChannel = new BroadcastChannel(channelName);
+      this.broadcastChannel.onmessage = (event: MessageEvent) => {
+        try {
+          const data = event.data;
+          if (!data) return;
+
+          let packet: Uint8Array;
+          if (data instanceof Uint8Array) {
+            packet =
+              data.byteOffset === 0 && data.byteLength === data.buffer.byteLength
+                ? data
+                : new Uint8Array(data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength));
+          } else if (data instanceof ArrayBuffer) {
+            packet = new Uint8Array(data);
+          } else {
+            // Strictly drop non-binary payloads (e.g. JSON, strings, objects)
+            return;
+          }
+
+          // Frame bounds check: drop runt packets (< 14 bytes) or oversized packets (> 64 KB)
+          if (packet.byteLength < MIN_ETHERNET_FRAME_SIZE || packet.byteLength > MAX_ETHERNET_FRAME_SIZE) {
+            return;
+          }
+
           this.bytesReceived += packet.byteLength;
           if (this.onReceiveCallback) {
             this.onReceiveCallback(packet);
           }
+        } catch (err) {
+          console.warn("Failed to process incoming network packet:", err);
         }
       };
     }
@@ -49,13 +83,29 @@ export class NetworkBridge {
         }
       };
 
-      emulator.add_listener("net0-send", (packet: Uint8Array) => {
-        this.bytesSent += packet.byteLength;
+      emulator.add_listener("net0-send", (packet: unknown) => {
+        if (!packet) return;
+
+        let data: Uint8Array;
+        if (packet instanceof Uint8Array) {
+          data = packet;
+        } else if (packet instanceof ArrayBuffer) {
+          data = new Uint8Array(packet);
+        } else {
+          return;
+        }
+
+        // Validate outbound frame bounds
+        if (data.byteLength < MIN_ETHERNET_FRAME_SIZE || data.byteLength > MAX_ETHERNET_FRAME_SIZE) {
+          return;
+        }
+
+        this.bytesSent += data.byteLength;
         if (this.broadcastChannel) {
-          this.broadcastChannel.postMessage(packet);
+          this.broadcastChannel.postMessage(data);
         }
         if (onPacketSent) {
-          onPacketSent(packet);
+          onPacketSent(data);
         }
       });
     }

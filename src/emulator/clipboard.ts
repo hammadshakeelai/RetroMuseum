@@ -45,6 +45,17 @@ export const SCANCODES = {
 
   // Alt + F7 (Xorg Desktop screen in many distros)
   ALT_F7: [0x38, 0x41, 0xc1, 0xb8],
+
+  // Backspace
+  BACKSPACE: [0x0e, 0x8e],
+
+  // Page Up / Down
+  PAGE_UP: [0xe0, 0x49, 0xe0, 0xc9],
+  PAGE_DOWN: [0xe0, 0x51, 0xe0, 0xd1],
+
+  // Home / End
+  HOME: [0xe0, 0x47, 0xe0, 0xc7],
+  END: [0xe0, 0x4f, 0xe0, 0xcf],
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

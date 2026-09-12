@@ -1,3 +1,4 @@
+import { Dialog } from "./Dialog";
 import React, { useState, useEffect } from "react";
 import {
   X,
@@ -12,10 +13,12 @@ import {
 } from "lucide-react";
 import type { VMSnapshot, VMStatus } from "../../emulator/types";
 import {
+  getSnapshot,
   listSnapshots,
   deleteSnapshot,
   exportSnapshotToFile,
   importSnapshotFromFile,
+  type SnapshotSummary,
 } from "../../emulator/storage";
 
 interface SnapshotModalProps {
@@ -37,14 +40,14 @@ export const SnapshotModal: React.FC<SnapshotModalProps> = ({
   onSaveSnapshot,
   onRestoreSnapshot,
 }) => {
-  const [snapshots, setSnapshots] = useState<VMSnapshot[]>([]);
+  const [snapshots, setSnapshots] = useState<SnapshotSummary[]>([]);
   const [newLabel, setNewLabel] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const loadSnapshots = async () => {
     try {
-      const items = await listSnapshots();
+      const items = await listSnapshots(currentProfileId);
       setSnapshots(items);
     } catch (e) {
       console.error("Failed to load snapshots:", e);
@@ -53,9 +56,9 @@ export const SnapshotModal: React.FC<SnapshotModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      loadSnapshots();
+      void listSnapshots(currentProfileId).then(setSnapshots).catch(error => alert(String(error)));
     }
-  }, [isOpen]);
+  }, [isOpen, currentProfileId]);
 
   if (!isOpen) return null;
 
@@ -79,10 +82,12 @@ export const SnapshotModal: React.FC<SnapshotModalProps> = ({
     }
   };
 
-  const handleRestore = async (snap: VMSnapshot) => {
+  const handleRestore = async (snap: SnapshotSummary) => {
     if (confirm(`Restore snapshot "${snap.label}"? Unsaved changes will be overwritten.`)) {
       try {
-        await onRestoreSnapshot(snap.data);
+        const snapshot = await getSnapshot(snap.id);
+        if (!snapshot) throw new Error("Snapshot no longer exists.");
+        await onRestoreSnapshot(snapshot.data);
         onClose();
       } catch (err) {
         alert("Error restoring snapshot: " + err);
@@ -92,8 +97,10 @@ export const SnapshotModal: React.FC<SnapshotModalProps> = ({
 
   const handleDelete = async (id: string) => {
     if (confirm("Delete this snapshot from browser storage?")) {
-      await deleteSnapshot(id);
-      await loadSnapshots();
+      try {
+        await deleteSnapshot(id);
+        await loadSnapshots();
+      } catch (error) { alert(String(error)); }
     }
   };
 
@@ -112,7 +119,7 @@ export const SnapshotModal: React.FC<SnapshotModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <Dialog label="Snapshot" onClose={onClose}>
       <div className="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-xl overflow-hidden shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800">
@@ -123,6 +130,7 @@ export const SnapshotModal: React.FC<SnapshotModalProps> = ({
             </h2>
           </div>
           <button
+            aria-label="Close dialog"
             onClick={onClose}
             className="p-1 rounded-md text-slate-400 hover:text-white hover:bg-slate-800 transition"
           >
@@ -208,6 +216,7 @@ export const SnapshotModal: React.FC<SnapshotModalProps> = ({
                   {/* Actions */}
                   <div className="flex items-center gap-1.5">
                     <button
+                      disabled={isSaving || status === "booting" || status === "saving" || status === "restoring"}
                       onClick={() => handleRestore(s)}
                       className="p-1.5 rounded bg-emerald-950/60 hover:bg-emerald-900 border border-emerald-800/60 text-emerald-300 transition"
                       title="Restore Snapshot into RAM"
@@ -215,7 +224,13 @@ export const SnapshotModal: React.FC<SnapshotModalProps> = ({
                       <Play className="w-3.5 h-3.5 fill-current" />
                     </button>
                     <button
-                      onClick={() => exportSnapshotToFile(s)}
+                      onClick={async () => {
+                        try {
+                          const snapshot = await getSnapshot(s.id);
+                          if (!snapshot) throw new Error("Snapshot no longer exists.");
+                          exportSnapshotToFile(snapshot);
+                        } catch (error) { alert(String(error)); }
+                      }}
                       className="p-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition"
                       title="Download .bin file to disk"
                     >
@@ -235,6 +250,6 @@ export const SnapshotModal: React.FC<SnapshotModalProps> = ({
           )}
         </div>
       </div>
-    </div>
+    </Dialog>
   );
 };

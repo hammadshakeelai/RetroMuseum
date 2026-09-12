@@ -1,3 +1,4 @@
+import { Dialog } from "./Dialog";
 import React from "react";
 import { X, Terminal, Trash2, Download } from "lucide-react";
 
@@ -24,7 +25,7 @@ export const LogsModal: React.FC<LogsModalProps> = ({ isOpen, onClose, logs, onC
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <Dialog label="Logs" onClose={onClose}>
       <div className="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[80vh]">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-slate-800">
@@ -52,7 +53,8 @@ export const LogsModal: React.FC<LogsModalProps> = ({ isOpen, onClose, logs, onC
               <Trash2 className="w-4 h-4" />
             </button>
             <button
-              onClick={onClose}
+              aria-label="Close dialog"
+            onClick={onClose}
               className="p-1 rounded-md text-slate-400 hover:text-white hover:bg-slate-800 transition"
             >
               <X className="w-4 h-4" />
@@ -71,6 +73,6 @@ export const LogsModal: React.FC<LogsModalProps> = ({ isOpen, onClose, logs, onC
           )}
         </div>
       </div>
-    </div>
+    </Dialog>
   );
 };

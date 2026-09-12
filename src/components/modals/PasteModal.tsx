@@ -1,11 +1,19 @@
+import { Dialog } from "./Dialog";
 import React, { useState } from "react";
 import { X, ClipboardPaste, Terminal, FileCode, CheckCircle2, Upload } from "lucide-react";
+import {
+  sanitizeFilename,
+  MAX_GUEST_FILE_SIZE,
+  MAX_TERMINAL_INPUT_LENGTH,
+} from "../../emulator/security";
 
 interface PasteModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSendText: (text: string) => void;
   onUploadFile: (path: string, data: Uint8Array) => Promise<void>;
+  guestDirectory: string;
+  supportsFiles: boolean;
   initialTab?: "paste" | "upload";
 }
 
@@ -15,11 +23,13 @@ export const PasteModal: React.FC<PasteModalProps> = ({
   onSendText,
   onUploadFile,
   initialTab = "paste",
+  guestDirectory,
+  supportsFiles,
 }) => {
   const [activeTab, setActiveTab] = useState<"paste" | "upload">(initialTab);
   const [text, setText] = useState("");
   const [appendEnter, setAppendEnter] = useState(true);
-  const [filePath, setFilePath] = useState("/root/script.sh");
+  const [filePath, setFilePath] = useState(`${guestDirectory}/script.sh`);
   const [isProcessing, setIsProcessing] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
@@ -27,6 +37,10 @@ export const PasteModal: React.FC<PasteModalProps> = ({
 
   const handlePasteExecute = () => {
     if (!text) return;
+    if (text.length > MAX_TERMINAL_INPUT_LENGTH) {
+      alert(`Text is too large to type as raw keystrokes (> ${MAX_TERMINAL_INPUT_LENGTH / 1024} KB). Please use "Write to File" or "Upload Host File" instead.`);
+      return;
+    }
     const toSend = appendEnter ? text + "\n" : text;
     onSendText(toSend);
     setSuccessMsg("Keystrokes transmitted to terminal!");
@@ -42,6 +56,9 @@ export const PasteModal: React.FC<PasteModalProps> = ({
     try {
       const encoder = new TextEncoder();
       const data = encoder.encode(text);
+      if (data.byteLength > MAX_GUEST_FILE_SIZE) {
+        throw new Error(`File size exceeds maximum allowed upload limit (${MAX_GUEST_FILE_SIZE / (1024 * 1024)} MB).`);
+      }
       await onUploadFile(filePath, data);
       setSuccessMsg(`File created at ${filePath}!`);
       setTimeout(() => {
@@ -58,12 +75,28 @@ export const PasteModal: React.FC<PasteModalProps> = ({
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
+      if (file.size === 0) {
+        alert("Selected file is empty.");
+        return;
+      }
+      if (file.size > MAX_GUEST_FILE_SIZE) {
+        alert(`File size exceeds maximum allowed limit (${MAX_GUEST_FILE_SIZE / (1024 * 1024)} MB).`);
+        return;
+      }
+      let safeName: string;
+      try {
+        safeName = sanitizeFilename(file.name);
+      } catch (err) {
+        alert(err instanceof Error ? err.message : "Invalid filename.");
+        return;
+      }
       setIsProcessing(true);
       try {
         const buffer = await file.arrayBuffer();
-        const dest = `/root/${file.name}`;
+        const cleanGuestDir = guestDirectory.replace(/\/+$/, "");
+        const dest = `${cleanGuestDir}/${safeName}`;
         await onUploadFile(dest, new Uint8Array(buffer));
-        setSuccessMsg(`Uploaded ${file.name} to ${dest}!`);
+        setSuccessMsg(`Uploaded ${safeName} to ${dest}!`);
         setTimeout(() => {
           setSuccessMsg(null);
           onClose();
@@ -77,7 +110,7 @@ export const PasteModal: React.FC<PasteModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <Dialog label="Paste" onClose={onClose}>
       <div className="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-lg overflow-hidden shadow-2xl">
         {/* Tabs & Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-slate-800">
@@ -107,6 +140,7 @@ export const PasteModal: React.FC<PasteModalProps> = ({
           </div>
 
           <button
+            aria-label="Close dialog"
             onClick={onClose}
             className="p-1 rounded-md text-slate-400 hover:text-white hover:bg-slate-800 transition"
           >
@@ -116,6 +150,7 @@ export const PasteModal: React.FC<PasteModalProps> = ({
 
         {/* Content */}
         <div className="p-5 space-y-4">
+          {!supportsFiles && <p className="text-xs text-amber-300">This image has no shared filesystem. Paste commands into the terminal, or choose Micro Linux / Arch for file uploads.</p>}
           {successMsg && (
             <div className="p-2.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4" />
@@ -161,7 +196,7 @@ export const PasteModal: React.FC<PasteModalProps> = ({
                   />
                   <button
                     onClick={handleWriteToFile}
-                    disabled={!text || isProcessing}
+                    disabled={!text || isProcessing || !supportsFiles}
                     className="px-3 py-1.5 rounded bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-300 text-xs font-medium flex items-center gap-1.5 transition"
                     title="Write directly into 9P filesystem"
                   >
@@ -188,12 +223,12 @@ export const PasteModal: React.FC<PasteModalProps> = ({
                   Select file from host machine
                 </span>
                 <span className="text-[11px] text-slate-500 mt-1">
-                  Will be uploaded into <code className="font-mono text-cyan-300">/root/</code>
+                  Will be uploaded into <code className="font-mono text-cyan-300">{guestDirectory}/</code>
                 </span>
                 <input
                   type="file"
                   onChange={handleFileUpload}
-                  disabled={isProcessing}
+                  disabled={isProcessing || !supportsFiles}
                   className="hidden"
                 />
               </label>
@@ -201,6 +236,6 @@ export const PasteModal: React.FC<PasteModalProps> = ({
           )}
         </div>
       </div>
-    </div>
+    </Dialog>
   );
 };

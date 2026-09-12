@@ -25,6 +25,8 @@ interface HeaderProps {
   onOpenMountMedia: () => void;
   onToggleDualLab: () => void;
   isDualLab: boolean;
+  activeStation?: number;
+  onSelectStation?: (station: number) => void;
 }
 
 
@@ -38,8 +40,38 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenMountMedia,
   onToggleDualLab,
   isDualLab,
+  activeStation = 0,
+  onSelectStation,
 }) => {
   const [dropdownOpen, setDropdownOpen] = React.useState(false);
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
+  const triggerButtonRef = React.useRef<HTMLButtonElement>(null);
+
+  React.useEffect(() => {
+    if (!dropdownOpen) return;
+
+    const handlePointerDown = (event: PointerEvent | MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setDropdownOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setDropdownOpen(false);
+        triggerButtonRef.current?.focus();
+      }
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [dropdownOpen]);
 
   const getStatusBadge = () => {
     switch (status) {
@@ -86,7 +118,7 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="h-14 border-b border-slate-800/80 bg-slate-950/70 backdrop-blur-md px-4 flex items-center justify-between z-30 select-none">
+    <header className="min-h-14 shrink-0 gap-2 flex-wrap py-2 border-b border-slate-800/80 bg-slate-950/70 backdrop-blur-md px-4 flex items-center justify-between z-30 select-none">
       {/* Brand & Distro Selector */}
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2 font-bold text-slate-100 tracking-tight">
@@ -105,30 +137,52 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="h-5 w-[1px] bg-slate-800 hidden sm:block" />
 
         {/* Profile Switcher */}
-        <div className="relative">
+        <div className="relative" ref={dropdownRef}>
           <button
+            ref={triggerButtonRef}
+            id="profile-select-button"
+            aria-label="Select OS profile"
+            aria-expanded={dropdownOpen}
+            aria-haspopup="menu"
             onClick={() => setDropdownOpen(!dropdownOpen)}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-slate-900 border border-slate-700/60 hover:border-cyan-500/50 hover:bg-slate-850 transition text-xs font-medium text-slate-200 shadow-sm"
+            onKeyDown={(e) => {
+              if (e.key === "ArrowDown" && !dropdownOpen) {
+                e.preventDefault();
+                setDropdownOpen(true);
+              }
+            }}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-slate-900 border border-slate-700/60 hover:border-cyan-500/50 hover:bg-slate-850 transition text-xs font-medium text-slate-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
           >
+            {isDualLab && (
+              <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded bg-cyan-950 text-cyan-300 border border-cyan-800/60">
+                S{activeStation + 1}
+              </span>
+            )}
             {currentProfile.mode === "gui" ? (
               <Monitor className="w-3.5 h-3.5 text-cyan-400" />
             ) : (
               <Terminal className="w-3.5 h-3.5 text-emerald-400" />
             )}
-            <span className="font-semibold text-slate-100">{currentProfile.name}</span>
+            <span className="font-semibold text-slate-100 truncate max-w-36 xl:max-w-64">{currentProfile.name}</span>
             <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${dropdownOpen ? "rotate-180" : ""}`} />
           </button>
 
           {/* Dropdown Menu */}
           {dropdownOpen && (
-            <div className="absolute left-0 top-full mt-2 w-72 rounded-lg bg-slate-900 border border-slate-800 shadow-2xl p-1 z-50 divide-y divide-slate-800/60">
+            <div
+              role="menu"
+              aria-labelledby="profile-select-button"
+              className="absolute left-0 top-full mt-2 w-72 max-h-[70dvh] overflow-y-auto rounded-lg bg-slate-900 border border-slate-800 shadow-2xl p-1 z-50 divide-y divide-slate-800/60"
+            >
               <div className="py-1">
                 <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                  Select OS Profile
+                  Select OS Profile {isDualLab ? `(Station ${activeStation + 1})` : ""}
                 </div>
                 {PROFILES.map((p) => (
                   <button
                     key={p.id}
+                    role="menuitem"
+                    aria-label={`Select ${p.name}`}
                     onClick={() => {
                       onSelectProfile(p);
                       setDropdownOpen(false);
@@ -169,11 +223,64 @@ export const Header: React.FC<HeaderProps> = ({
           )}
         </div>
 
+        {/* Visual Station Indicator & Toggle in Dual Lab mode */}
+        {isDualLab && (
+          <div
+            role="radiogroup"
+            aria-label="Active Station Control"
+            className="flex items-center bg-slate-900/90 border border-slate-700/80 rounded-lg p-0.5 text-xs shadow-inner"
+          >
+            <span className="text-[10px] uppercase font-semibold text-slate-400 px-1.5 hidden md:inline">
+              Station:
+            </span>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={activeStation === 0}
+              aria-label="Control Station 1"
+              onClick={() => onSelectStation?.(0)}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition ${
+                activeStation === 0
+                  ? "bg-cyan-600 text-white shadow-sm ring-1 ring-cyan-400/50"
+                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+              }`}
+              title="Header controls Station 1 VM"
+            >
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${
+                  activeStation === 0 ? "bg-white animate-pulse" : "bg-cyan-500/70"
+                }`}
+              />
+              <span>Station 1</span>
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={activeStation === 1}
+              aria-label="Control Station 2"
+              onClick={() => onSelectStation?.(1)}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition ${
+                activeStation === 1
+                  ? "bg-cyan-600 text-white shadow-sm ring-1 ring-cyan-400/50"
+                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+              }`}
+              title="Header controls Station 2 VM"
+            >
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${
+                  activeStation === 1 ? "bg-white animate-pulse" : "bg-cyan-500/70"
+                }`}
+              />
+              <span>Station 2</span>
+            </button>
+          </div>
+        )}
+
         {getStatusBadge()}
       </div>
 
       {/* Center / System Telemetry */}
-      <div className="hidden md:flex items-center gap-4 text-xs font-mono text-slate-400">
+      <div className="hidden 2xl:flex items-center gap-4 text-xs font-mono text-slate-400">
         <div className="flex items-center gap-1.5" title="CPU Instruction Execution Speed">
           <Activity className="w-3.5 h-3.5 text-cyan-400" />
           <span>{stats.mips} MIPS</span>
@@ -194,6 +301,7 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="flex items-center gap-2">
         <button
           onClick={onToggleDualLab}
+          aria-pressed={isDualLab}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-medium transition ${
             isDualLab
               ? "bg-cyan-500/20 border-cyan-500/50 text-cyan-300 shadow-sm shadow-cyan-500/20"

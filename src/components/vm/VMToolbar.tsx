@@ -45,8 +45,9 @@ export const VMToolbar: React.FC<VMToolbarProps> = ({
   onOpenFileUpload,
   onOpenLogsModal,
 }) => {
+  const ready = status === "running" || status === "paused";
   return (
-    <div className="h-11 bg-slate-900/90 border-b border-slate-800/80 px-3 flex items-center justify-between select-none">
+    <div className="h-11 shrink-0 overflow-x-auto gap-3 bg-slate-900/90 border-b border-slate-800/80 px-3 flex items-center justify-between select-none">
       {/* Power & Execution State */}
       <div className="flex items-center gap-1.5">
         {status === "idle" || status === "error" ? (
@@ -69,18 +70,19 @@ export const VMToolbar: React.FC<VMToolbarProps> = ({
           </button>
         ) : (
           <button
+            disabled={status !== "paused"}
             onClick={onResume}
             className="flex items-center gap-1.5 px-3 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-sm transition"
             title="Resume Emulation Execution"
           >
             <Play className="w-3.5 h-3.5 fill-current" />
-            <span>Resume</span>
+            <span>{status === "paused" ? "Resume" : "Please wait…"}</span>
           </button>
         )}
 
         <button
           onClick={onRestart}
-          disabled={status === "idle"}
+          disabled={!ready}
           className="flex items-center gap-1 px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:hover:bg-slate-800 text-slate-300 hover:text-white text-xs font-medium transition"
           title="Warm Reboot VM"
         >
@@ -90,7 +92,7 @@ export const VMToolbar: React.FC<VMToolbarProps> = ({
 
         <button
           onClick={onResetClean}
-          disabled={status === "idle"}
+          disabled={!ready}
           className="flex items-center gap-1 px-2 py-1 rounded bg-slate-800 hover:bg-rose-900/40 text-slate-300 hover:text-rose-300 border border-transparent hover:border-rose-700/50 text-xs font-medium transition"
           title="Reset to Pristine Factory OS State"
         >
@@ -103,7 +105,7 @@ export const VMToolbar: React.FC<VMToolbarProps> = ({
       <div className="flex items-center gap-1.5">
         <button
           onClick={onOpenPasteModal}
-          disabled={status === "idle"}
+          disabled={!ready}
           className="flex items-center gap-1 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-300 hover:text-white text-xs font-medium transition"
           title="Type text or paste commands directly into Linux terminal"
         >
@@ -113,7 +115,7 @@ export const VMToolbar: React.FC<VMToolbarProps> = ({
 
         <button
           onClick={onOpenFileUpload}
-          disabled={status === "idle"}
+          disabled={!ready}
           className="flex items-center gap-1 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-300 hover:text-white text-xs font-medium transition"
           title="Upload file into Linux /root/ directory"
         >
@@ -137,7 +139,7 @@ export const VMToolbar: React.FC<VMToolbarProps> = ({
 
         <button
           onClick={onScreenshot}
-          disabled={status === "idle"}
+          disabled={!ready}
           className="p-1.5 rounded bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-400 hover:text-slate-200 transition"
           title="Capture High-Res VM Screen Snapshot (PNG)"
         >

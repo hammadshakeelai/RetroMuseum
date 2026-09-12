@@ -14,6 +14,7 @@
 | Repo visibility | Public | GitHub Pages is free for public repos. |
 | Hosting | GitHub Pages | The app is fully static and the workflow already existed. |
 | Base path | `/WebOS/` | Set from the repo name in `deploy.yml`. **Renaming the repo changes both the URL and the base path.** |
+| Deploy branch | `master` | Allowed through the `github-pages` environment's branch policy (see Phase 1, step 3). |
 | OS images | Keep loading from `i.copy.sh` for v1 | Mirroring is Phase 3. |
 | License | MIT, plus [third-party notices](../THIRD_PARTY_NOTICES.md) | |
 
@@ -43,21 +44,26 @@ push to master
 
 ## Phase 1: Repository and first deploy
 
-1. [ ] Create the public repo `hammadshakeelai/WebOS`.
-2. [ ] Turn on Pages with the source set to GitHub Actions:
+1. [x] Create the public repo `hammadshakeelai/WebOS`.
+2. [x] Turn on Pages with the source set to GitHub Actions:
    ```bash
    gh api -X POST repos/hammadshakeelai/WebOS/pages -f build_type=workflow
    ```
    This is a one-time step. The workflow's `configure-pages` step can't do it itself: its `enablement` option needs a token other than the default `GITHUB_TOKEN`.
-3. [ ] Push `master` and watch the run: `gh run watch`.
-4. [ ] Run the live smoke test below.
+3. [x] Allow `master` to deploy. Turning on Pages creates a `github-pages` environment that only accepts deploys from `main`, so a push to `master` would fail at the final step:
+   ```bash
+   gh api -X POST repos/hammadshakeelai/WebOS/environments/github-pages/deployment-branch-policies -f name=master -f type=branch
+   ```
+   If you ever rename the branch, update this policy too.
+4. [x] Push `master` and watch the run with `gh run watch`. The first deploy passed in 29 seconds.
+5. [ ] Finish the live smoke test below.
 
 ### Live smoke test
 
 Run after every deploy that changes emulator, profile, or build code.
 
-- [ ] https://hammadshakeelai.github.io/WebOS/ loads with no console errors
-- [ ] **Micro Linux** boots to a `~%` prompt
+- [x] https://hammadshakeelai.github.io/WebOS/ loads with no console errors or failed requests
+- [x] **Micro Linux** boots to a `~%` prompt
 - [ ] **Arch Linux 32 (Terminal)** resumes to `root@localhost:~#`
 - [ ] **KolibriOS** reaches its desktop (checks graphics mode)
 - [ ] **Snapshots**: save one, reload the page, restore it
@@ -73,6 +79,7 @@ Run after every deploy that changes emulator, profile, or build code.
 | --- | --- |
 | Add a `ci.yml` that runs lint, test, and build on `pull_request` | Today checks only run on pushes to `master`, and those pushes also deploy. PRs get no feedback. |
 | Protect `master`: require the CI check to pass | Stops a broken commit from deploying. |
+| Update the GitHub Actions in `deploy.yml` | The first run warned that `checkout@v4`, `setup-node@v4`, `configure-pages@v5`, `upload-pages-artifact@v3`, and `deploy-pages@v4` target the deprecated Node.js 20 and are being forced onto Node 24. Move to releases built for Node 24. |
 | Enable Dependabot for `npm` and `github-actions` | Keeps v86, React, Vite, and the action versions current. |
 | Add a `prebuild` script that runs `sync:runtime` | `public/v86/` is only refreshed by `npm run dev`. Syncing before build keeps it in step with `package-lock.json`. |
 | Fix the `linux4-cli` profile | The guest tries to mount a 9P share at `/mnt`, but the profile defines no filesystem, so boot prints a mount error. Add `filesystem: {}` and `sharedDirectory: "/mnt"`. |

@@ -51,3 +51,35 @@
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(100, 116, 139, 0.7);
 }
+
+/* v86 Hardware Screen Styling */
+.v86-screen-target canvas {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.v86-screen-target div {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+}
+
+.blink {
+  animation: blink 0.6s step-start infinite;
+}
+@keyframes blink {
+  50% {
+    color: transparent;
+  }
+}
+
+.blinking-cursor {
+  animation: blinking-cursor 0.6s step-start infinite;
+}
+@keyframes blinking-cursor {
+  50% {
+    background-color: transparent;
+  }
+}
+

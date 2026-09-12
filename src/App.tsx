@@ -14,9 +14,10 @@ import { PROFILES, getProfileById } from "./profiles";
 import type { VMProfile } from "./emulator/types";
 
 export function App() {
-  // Default to the instant bundled Micro Linux or Arch 32
-  const initialProfile = getProfileById("arch-cli");
+  // Default to the instant bundled local Micro Linux sandbox
+  const initialProfile = getProfileById("micro-sandbox");
   const vm = useV86({ initialProfile });
+
 
   // UI state
   const [isDualLab, setIsDualLab] = useState(false);

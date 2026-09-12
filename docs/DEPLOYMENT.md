@@ -42,7 +42,7 @@ push to master
 - [x] Every `i.copy.sh` image returns `Access-Control-Allow-Origin: *`, so a hosted copy of the app can load them
 - [x] Pre-publish cleanup: README corrected, hardcoded local paths removed from test scripts, MIT `LICENSE` and third-party notices added, unused `.agents/` stubs deleted
 
-## Phase 1: Repository and first deploy
+## Phase 1: Repository and first deploy ✅
 
 1. [x] Create the public repo `hammadshakeelai/WebOS`.
 2. [x] Turn on Pages with the source set to GitHub Actions:
@@ -56,7 +56,7 @@ push to master
    ```
    If you ever rename the branch, update this policy too.
 4. [x] Push `master` and watch the run with `gh run watch`. The first deploy passed in 29 seconds.
-5. [ ] Finish the live smoke test below.
+5. [x] Run the live smoke test below. Every check passed on the live site on 2026-09-13.
 
 ### Live smoke test
 
@@ -64,12 +64,12 @@ Run after every deploy that changes emulator, profile, or build code.
 
 - [x] https://hammadshakeelai.github.io/WebOS/ loads with no console errors or failed requests
 - [x] **Micro Linux** boots to a `~%` prompt
-- [ ] **Arch Linux 32 (Terminal)** resumes to `root@localhost:~#`
-- [ ] **KolibriOS** reaches its desktop (checks graphics mode)
-- [ ] **Snapshots**: save one, reload the page, restore it
-- [ ] **Cyber Lab Mode** shows Station 1 and Station 2
-- [ ] **Kali** opens the Mount ISO dialog instead of trying to boot
-- [ ] **Mount ISO** rejects an `http://` URL (the site is HTTPS, so mixed content is blocked)
+- [x] **Arch Linux 32 (Terminal)** resumes to `root@localhost:~#`
+- [x] **KolibriOS** reaches its desktop (checks graphics mode)
+- [x] **Snapshots**: save one, reload the page, restore it
+- [x] **Cyber Lab Mode** shows Station 1 and Station 2
+- [x] **Kali** opens the Mount ISO dialog instead of trying to boot
+- [x] **Mount ISO** rejects an `http://` URL (the site is HTTPS, so mixed content is blocked)
 
 ---
 
@@ -82,7 +82,7 @@ Run after every deploy that changes emulator, profile, or build code.
 | Update the GitHub Actions in `deploy.yml` | The first run warned that `checkout@v4`, `setup-node@v4`, `configure-pages@v5`, `upload-pages-artifact@v3`, and `deploy-pages@v4` target the deprecated Node.js 20 and are being forced onto Node 24. Move to releases built for Node 24. |
 | Enable Dependabot for `npm` and `github-actions` | Keeps v86, React, Vite, and the action versions current. |
 | Add a `prebuild` script that runs `sync:runtime` | `public/v86/` is only refreshed by `npm run dev`. Syncing before build keeps it in step with `package-lock.json`. |
-| Fix the `linux4-cli` profile | The guest tries to mount a 9P share at `/mnt`, but the profile defines no filesystem, so boot prints a mount error. Add `filesystem: {}` and `sharedDirectory: "/mnt"`. |
+| Fix the `linux4-cli` mount error | The guest always tries to mount a 9P share at `/mnt`, but the profile defines no filesystem, so boot prints a mount error. Try adding `filesystem: {}` and `sharedDirectory: "/mnt"`, then confirm the error is gone. It's cosmetic: the prompt still works. |
 | Correct the Micro Linux label | The app calls it "Micro Linux 6.8", but `public/images/buildroot-bzimage.bin` is Linux 5.6.15 (built 2020). Update the name and description in `src/profiles/index.ts`, then the tests and scripts that match on that name. |
 | Publish GPL source for the bundled kernel | The repo redistributes a GPL-2.0 kernel and BusyBox binary. GPL recipients are entitled to the exact corresponding source. Link it from `THIRD_PARTY_NOTICES.md`, or rebuild the image from a Buildroot config you commit. |
 | Test the 3 untested profiles | Arch Linux 32 (Desktop), Arch Linux 32 (Cold Boot 9P), Damn Small Linux. |

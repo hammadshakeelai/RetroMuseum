@@ -136,7 +136,7 @@ export const NetworkModal: React.FC<NetworkModalProps> = ({
                   <span>In-Browser Mesh Lab (BroadcastChannel)</span>
                 </div>
                 <p className="text-[11px] text-slate-400 mt-1 leading-normal">
-                  Connects virtual machines across tabs or split-screen panes inside the browser. No external internet servers required. Perfect for Kali pen-testing labs.
+                  Connects virtual machines across tabs or split-screen panes inside the browser. No external internet servers required. Good for attacker-and-target labs in Cyber Lab Mode.
                 </p>
               </div>
             </label>

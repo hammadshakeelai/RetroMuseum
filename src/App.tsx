@@ -22,25 +22,15 @@ function Workspace({
   crt,
   toggleCrt,
   open,
-  onOpenMountPreset,
 }: {
   vm: VM;
   crt: boolean;
   toggleCrt: () => void;
   open: (modal: Modal) => void;
-  onOpenMountPreset?: (profile: VMProfile) => void;
 }) {
   const [keysOpen, setKeysOpen] = useState(true);
   const start = () => {
-    if (vm.profile.needsCustomMedia) {
-      if (onOpenMountPreset) {
-        onOpenMountPreset(vm.profile);
-      } else {
-        open("mount");
-      }
-    } else {
-      void vm.startVM();
-    }
+    void vm.startVM();
   };
 
   return (
@@ -115,16 +105,10 @@ export default function App() {
   const [active, setActive] = useState(0);
   const [crt, setCrt] = useState(false);
   const [modal, setModal] = useState<Modal>(null);
-  const [mountPreset, setMountPreset] = useState<VMProfile | null>(null);
 
   const vm = active === 1 && dual ? secondary : primary;
 
   const selectProfile = (profile: VMProfile) => {
-    if (profile.needsCustomMedia) {
-      setMountPreset(profile);
-      setModal("mount");
-      return;
-    }
     if (
       ["running", "paused"].includes(vm.status) &&
       !confirm("Switch OS? Unsaved changes in this station will be lost.")
@@ -148,10 +132,7 @@ export default function App() {
         onSelectProfile={selectProfile}
         onOpenSnapshots={() => setModal("snapshots")}
         onOpenNetwork={() => setModal("network")}
-        onOpenMountMedia={() => {
-          setMountPreset(null);
-          setModal("mount");
-        }}
+        onOpenMountMedia={() => setModal("mount")}
         isDualLab={dual}
         onToggleDualLab={() => {
           if (dual) {
@@ -204,10 +185,6 @@ export default function App() {
               crt={crt}
               toggleCrt={() => setCrt(!crt)}
               open={setModal}
-              onOpenMountPreset={(p) => {
-                setMountPreset(p);
-                setModal("mount");
-              }}
             />
           </section>
         ))}
@@ -254,16 +231,10 @@ export default function App() {
         )}
         {modal === "mount" && (
           <MountMediaModal
-            key={mountPreset?.id || "custom-mount"}
             isOpen
-            onClose={() => {
-              setModal(null);
-              setMountPreset(null);
-            }}
-            initialProfile={mountPreset}
+            onClose={() => setModal(null)}
             onBootCustomProfile={(profile) => {
               void vm.switchProfile(profile);
-              setMountPreset(null);
             }}
           />
         )}

@@ -3,7 +3,7 @@
 export interface VMProfile {
   id: string;
   name: string;
-  category: "arch" | "ubuntu" | "kali" | "blackarch" | "micro" | "dsl" | "kolibri" | "freedos" | "custom";
+  category: "arch" | "micro" | "dsl" | "kolibri" | "freedos" | "custom";
   mode: "cli" | "gui";
   description: string;
   tagline: string;
@@ -28,7 +28,6 @@ export interface VMProfile {
   netDevice?: "virtio" | "ne2k";
   isExperimental?: boolean;
   recommended?: boolean;
-  needsCustomMedia?: boolean;
 }
 
 export type VMStatus = "idle" | "booting" | "running" | "paused" | "saving" | "restoring" | "error";

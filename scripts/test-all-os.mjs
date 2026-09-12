@@ -116,7 +116,6 @@ const profilesToTest = [
   { id: "linux4-cli", name: "Linux 4.x Minimal Live CD", expectedMode: "cli", type: "cdrom" },
   { id: "dsl-gui", name: "Damn Small Linux 4.11", expectedMode: "gui", type: "cdrom" },
   { id: "arch-cli", name: "Arch Linux 32 (Terminal)", expectedMode: "cli", type: "state" },
-  { id: "kali-cli", name: "Kali Linux 2024.3", expectedMode: "cli", type: "custom-media" },
 ];
 
 console.log("\n===================================================================");
@@ -136,30 +135,6 @@ for (const profile of profilesToTest) {
   const isIdle = await evaluate("Array.from(document.querySelectorAll('header span')).some(s => s.innerText.trim() === 'Ready')");
   console.log(`  DOM State: "${activeName}" (Ready status: ${isIdle})`);
 
-  if (profile.type === "custom-media") {
-    // For custom-media profiles, clicking Power On or selecting should trigger MountMediaModal
-    await evaluate(`
-      (() => {
-        const btn = Array.from(document.querySelectorAll('button')).find(b => b.innerText.includes('Power On'));
-        btn?.click();
-      })()
-    `);
-    await new Promise((r) => setTimeout(r, 1000));
-    const dialogOpen = await evaluate("!!document.querySelector('dialog')");
-    const dialogTitle = await evaluate("document.querySelector('dialog h2')?.innerText");
-    console.log(`  Custom media guard: Dialog open=${dialogOpen} ("${dialogTitle}")`);
-    await screenshot(`os_test_${profile.id}_guard.png`);
-    
-    // Dismiss dialog
-    await evaluate("document.querySelector('dialog')?.click()");
-    await new Promise((r) => setTimeout(r, 500));
-
-    testResults.push({
-      ...profile,
-      status: dialogOpen ? "PASSED (Protected & Modal Pre-filled)" : "FAILED",
-    });
-    continue;
-  }
 
   // Click Power On
   console.log(`  Clicking 'Power On' in DOM...`);

@@ -39,17 +39,9 @@ Run real operating systems directly inside your browser—**no backend servers, 
 
 ✅ = booted to a shell prompt or desktop from a production build (2026-09-13). ⏳ = boot runs, but a login prompt hasn't been confirmed yet.
 
-### Bring your own image
+### Your own image
 
-These profiles need a 32-bit ISO or disk image that you provide through **Mount ISO**:
-
-| Profile | Type | Notes |
-| :--- | :---: | :--- |
-| **Kali Linux 2024.3 i386** | CLI / GUI | Last Kali release with official i386 images. See [`scripts/build-kali-32.md`](scripts/build-kali-32.md). |
-| **Ubuntu 18.04 i386 / Xubuntu 18.04** | CLI / GUI | Last Ubuntu generation with a 32-bit kernel. |
-| **BlackArch Linux** | CLI | Experimental: Arch 32 with the BlackArch toolkit. |
-
-> **Why 32-bit?** v86 emulates a 32-bit x86 CPU (Pentium 4 instruction set). Modern Ubuntu (24.04+) and current Kali are `x86_64`-only, so the last 32-bit releases are used.
+**Mount ISO** boots any 32-bit x86 `.iso`, `.img`, `.bin`, or `.raw` image from a URL or a file on your computer. v86 emulates a 32-bit CPU (Pentium 4 instruction set), so `x86_64`-only images won't boot.
 
 > **External image host:** Profiles marked *i.copy.sh* download their images from the v86 project's public image server. It allows cross-origin loading today, but this project doesn't control it. If that changes, those profiles stop booting; Micro Linux keeps working. See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for the mirroring plan.
 

@@ -70,7 +70,6 @@ Run after every deploy that changes emulator, profile, or build code.
 - [x] **KolibriOS** reaches its desktop (checks graphics mode)
 - [x] **Snapshots**: save one, reload the page, restore it
 - [x] **Cyber Lab Mode** shows Station 1 and Station 2
-- [x] **Kali** opens the Mount ISO dialog instead of trying to boot
 - [x] **Mount ISO** rejects an `http://` URL (the site is HTTPS, so mixed content is blocked)
 
 ---

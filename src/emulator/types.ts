@@ -3,7 +3,7 @@
 export interface VMProfile {
   id: string;
   name: string;
-  category: "arch" | "ubuntu" | "kali" | "blackarch" | "micro";
+  category: "arch" | "ubuntu" | "kali" | "blackarch" | "micro" | "dsl" | "custom";
   mode: "cli" | "gui";
   description: string;
   tagline: string;
@@ -12,6 +12,7 @@ export interface VMProfile {
   biosUrl?: string;
   vgaBiosUrl?: string;
   cdromUrl?: string;
+  cdromBuffer?: ArrayBuffer;
   hdaUrl?: string;
   hdaSize?: number;
   fdaUrl?: string;
@@ -26,6 +27,7 @@ export interface VMProfile {
   netDevice?: "virtio" | "ne2k";
   isExperimental?: boolean;
   recommended?: boolean;
+  needsCustomMedia?: boolean;
 }
 
 export type VMStatus = "idle" | "booting" | "running" | "paused" | "saving" | "restoring" | "error";

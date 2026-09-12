@@ -8,6 +8,7 @@ import { SnapshotModal } from "./components/modals/SnapshotModal";
 import { NetworkModal } from "./components/modals/NetworkModal";
 import { PasteModal } from "./components/modals/PasteModal";
 import { LogsModal } from "./components/modals/LogsModal";
+import { MountMediaModal } from "./components/modals/MountMediaModal";
 import { useV86 } from "./emulator/useV86";
 import { PROFILES, getProfileById } from "./profiles";
 import type { VMProfile } from "./emulator/types";
@@ -27,6 +28,8 @@ export function App() {
   const [networkModalOpen, setNetworkModalOpen] = useState(false);
   const [pasteModalOpen, setPasteModalOpen] = useState(false);
   const [logsModalOpen, setLogsModalOpen] = useState(false);
+  const [mountModalOpen, setMountModalOpen] = useState(false);
+
 
   // Parse URL query parameters for shareable URLs: ?profile=arch-cli&mode=gui
   useEffect(() => {
@@ -92,6 +95,7 @@ export function App() {
         onSelectProfile={handleProfileSelect}
         onOpenSnapshots={() => setSnapshotModalOpen(true)}
         onOpenNetwork={() => setNetworkModalOpen(true)}
+        onOpenMountMedia={() => setMountModalOpen(true)}
         onToggleDualLab={() => setIsDualLab(!isDualLab)}
         isDualLab={isDualLab}
       />
@@ -175,8 +179,17 @@ export function App() {
         logs={vm.serialLogs}
         onClear={vm.clearSerialLogs}
       />
+
+      <MountMediaModal
+        isOpen={mountModalOpen}
+        onClose={() => setMountModalOpen(false)}
+        onBootCustomProfile={(customProfile) => {
+          vm.switchProfile(customProfile);
+        }}
+      />
     </div>
   );
 }
+
 
 export default App;

@@ -124,6 +124,33 @@ export class V86Engine {
         };
       }
 
+      // CDROM / ISO
+      if (this.profile.cdromBuffer) {
+        options.cdrom = {
+          buffer: this.profile.cdromBuffer,
+        };
+      } else if (this.profile.cdromUrl) {
+        options.cdrom = {
+          url: this.profile.cdromUrl,
+        };
+      }
+
+      // Hard disk (HDA)
+      if (this.profile.hdaUrl) {
+        options.hda = {
+          url: this.profile.hdaUrl,
+          size: this.profile.hdaSize,
+          async: true,
+        };
+      }
+
+      // Floppy disk (FDA)
+      if (this.profile.fdaUrl) {
+        options.fda = {
+          url: this.profile.fdaUrl,
+        };
+      }
+
       // Kernel cmdline
       if (this.profile.cmdline) {
         options.cmdline = this.profile.cmdline;
@@ -136,12 +163,13 @@ export class V86Engine {
         }
       }
 
-      // Instantiate V86 (either imported or from window.V86)
+      // Instantiate V86 (either from window.V86 or imported)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const V86Constructor = V86 || (window as any).V86;
+      const V86Constructor = (window as any).V86 || V86;
       if (!V86Constructor) {
         throw new Error("v86 emulator library not found. Please verify libv86 is loaded.");
       }
+
 
       this.instance = new V86Constructor(options);
 

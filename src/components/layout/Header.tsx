@@ -9,6 +9,7 @@ import {
   Radio,
   SplitSquareVertical,
   ChevronDown,
+  Disc,
 } from "lucide-react";
 
 import type { VMProfile, VMStatus, VMStats } from "../../emulator/types";
@@ -21,9 +22,11 @@ interface HeaderProps {
   onSelectProfile: (profile: VMProfile) => void;
   onOpenSnapshots: () => void;
   onOpenNetwork: () => void;
+  onOpenMountMedia: () => void;
   onToggleDualLab: () => void;
   isDualLab: boolean;
 }
+
 
 export const Header: React.FC<HeaderProps> = ({
   currentProfile,
@@ -32,6 +35,7 @@ export const Header: React.FC<HeaderProps> = ({
   onSelectProfile,
   onOpenSnapshots,
   onOpenNetwork,
+  onOpenMountMedia,
   onToggleDualLab,
   isDualLab,
 }) => {
@@ -202,6 +206,15 @@ export const Header: React.FC<HeaderProps> = ({
         </button>
 
         <button
+          onClick={onOpenMountMedia}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-slate-900 border border-slate-700/60 hover:border-cyan-500/50 hover:bg-slate-800 text-xs font-medium text-slate-300 hover:text-white transition"
+          title="Mount Custom ISO or Disk Image"
+        >
+          <Disc className="w-3.5 h-3.5 text-indigo-400" />
+          <span className="hidden sm:inline">Mount ISO</span>
+        </button>
+
+        <button
           onClick={onOpenNetwork}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-slate-900 border border-slate-700/60 hover:bg-slate-800 text-xs font-medium text-slate-300 hover:text-white transition"
           title="Configure Virtual Network & Mesh"
@@ -222,3 +235,4 @@ export const Header: React.FC<HeaderProps> = ({
     </header>
   );
 };
+

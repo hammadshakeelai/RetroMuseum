@@ -47,9 +47,10 @@ Files: `public/bios/seabios.bin`, `public/bios/vgabios.bin`
 
 File: `public/images/buildroot-bzimage.bin`
 
-- Linux 5.6.15 kernel with a Buildroot (BusyBox) userspace, built by the v86 project
+- Linux 5.6.15 kernel with a Buildroot (BusyBox) userspace, built by the v86 project in 2020
 - Licenses: the Linux kernel and BusyBox are under GPL-2.0; other Buildroot packages are under their own licenses
-- Upstream source: https://kernel.org and https://buildroot.org
+- Upstream source: Linux 5.6.15 at https://cdn.kernel.org/pub/linux/kernel/v5.x/linux-5.6.15.tar.xz, Buildroot at https://buildroot.org, and BusyBox at https://busybox.net
+- The exact build configuration for this image has not been published. Replacing it with an image built from a published configuration is tracked in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ## Operating system images loaded at runtime
 

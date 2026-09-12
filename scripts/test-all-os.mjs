@@ -110,7 +110,7 @@ await cdp("Runtime.enable");
 
 // Profiles to test:
 const profilesToTest = [
-  { id: "micro-sandbox", name: "Micro Linux 6.8", expectedMode: "cli", type: "bundled" },
+  { id: "micro-sandbox", name: "Micro Linux 5.6", expectedMode: "cli", type: "bundled" },
   { id: "kolibri-gui", name: "KolibriOS (Floppy GUI)", expectedMode: "gui", type: "floppy" },
   { id: "freedos-cli", name: "FreeDOS 1.3 (Floppy CLI)", expectedMode: "cli", type: "floppy" },
   { id: "linux4-cli", name: "Linux 4.x Minimal Live CD", expectedMode: "cli", type: "cdrom" },

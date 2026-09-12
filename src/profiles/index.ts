@@ -4,11 +4,11 @@ import type { VMProfile } from "../emulator/types";
 export const PROFILES: VMProfile[] = [
   {
     id: "micro-sandbox",
-    name: "Micro Linux 6.8 (Bundled Sandbox)",
+    name: "Micro Linux 5.6 (Bundled Sandbox)",
     category: "micro",
     mode: "cli",
     description:
-      "Ultra-lightweight Linux 6.8 kernel with BusyBox, Lua, curl, ping, and core POSIX utilities. Bundled locally in public/images/ for zero-latency instant offline boot.",
+      "Ultra-lightweight Linux 5.6 kernel with BusyBox, Lua, curl, ping, and core POSIX utilities. Bundled locally in public/images/ for zero-latency instant offline boot.",
     tagline: "Local 5MB Kernel • Instant Boot • Zero Network Dependency",
     memorySize: 128 * 1024 * 1024,
     vgaMemorySize: 4 * 1024 * 1024,
@@ -42,8 +42,8 @@ export const PROFILES: VMProfile[] = [
     category: "arch",
     mode: "gui",
     description:
-      "Arch Linux 32 graphical environment with Xorg, lightweight window manager, NetSurf browser, and X11 accessories.",
-    tagline: "Xorg Graphical Desktop • LightDM • Fast On-Demand Streaming",
+      "Arch Linux 32 with Xorg, a lightweight window manager, NetSurf browser, and X11 accessories. Resumes to a root shell; run ./startx.sh to start the Xorg desktop.",
+    tagline: "Xorg Desktop via ./startx.sh • 1 GB RAM • On-Demand Streaming",
     memorySize: 1024 * 1024 * 1024,
     vgaMemorySize: 32 * 1024 * 1024,
     stateUrl: "https://i.copy.sh/arch_state-v3.bin.zst",

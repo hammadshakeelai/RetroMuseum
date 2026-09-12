@@ -84,7 +84,7 @@ export const VMViewport: React.FC<VMViewportProps> = ({
       {/* v86 Hardware Canvas & Text Container */}
       <div
         ref={containerRef}
-        className={`v86-screen-target flex items-center justify-center max-w-full max-h-full cursor-pointer transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
+        className={`v86-screen-target absolute inset-0 flex items-center justify-center cursor-pointer transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
           crtEnabled ? "crt-effect" : ""
         }`}
         tabIndex={0}

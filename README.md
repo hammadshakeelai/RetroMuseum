@@ -1,4 +1,6 @@
-# 🌐 Browser Linux Lab (WebOS)
+<p align="center">
+  <a href="https://hammadshakeelai.github.io/WebOS/"><img src="docs/banner/readme-banner.png" alt="Browser Linux Lab: boot real operating systems in a browser tab" width="100%"></a>
+</p>
 
 > A modern, client-side Linux workstation and cyber training lab powered by WebAssembly and the [v86](https://copy.sh/v86/) x86 PC emulator.
 

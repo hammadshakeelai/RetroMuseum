@@ -3,11 +3,12 @@ import { spawn } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-const CHROME_PATH = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
+const CHROME_PATH = process.env.CHROME_PATH || "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
 const PORT = 4174;
 const DEBUG_PORT = 9223;
 const APP_URL = `http://localhost:${PORT}/`;
-const ARTIFACTS_DIR = "C:\\Users\\HP\\.gemini\\antigravity\\brain\\50f5ed89-d4a9-4010-9fa7-9d1063ad0cd8";
+const ARTIFACTS_DIR = process.env.ARTIFACTS_DIR || "artifacts";
+mkdirSync(ARTIFACTS_DIR, { recursive: true });
 
 console.log("🚀 Testing All WebOS OS Profiles in Chrome DOM...");
 

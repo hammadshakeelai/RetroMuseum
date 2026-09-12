@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Screenshots from scripts/test-all-os.mjs and scripts/run-chrome-dom.mjs
+artifacts
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

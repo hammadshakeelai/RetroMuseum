@@ -307,7 +307,7 @@ export const Header: React.FC<HeaderProps> = ({
               ? "bg-cyan-500/20 border-cyan-500/50 text-cyan-300 shadow-sm shadow-cyan-500/20"
               : "bg-slate-900 border-slate-700/60 hover:bg-slate-800 text-slate-300 hover:text-white"
           }`}
-          title="Toggle Cyber Training Split-Screen (Kali vs Target VM)"
+          title="Toggle Cyber Training Split-Screen (Attacker vs Target VM)"
         >
           <SplitSquareVertical className="w-3.5 h-3.5" />
           <span className="hidden sm:inline">Cyber Lab Mode</span>

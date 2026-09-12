@@ -3,23 +3,21 @@ import { PROFILES, getProfileById } from "../profiles";
 import { validateIsoUrl } from "../emulator/security";
 
 describe("UX Enhancements & Accessibility Verification", () => {
-  describe("Profiles & Custom Media Specs", () => {
-    it("flags Kali, Ubuntu, and BlackArch profiles as needing custom media", () => {
-      const kaliCli = getProfileById("kali-cli");
-      const kaliGui = getProfileById("kali-gui");
-      const ubuntuCli = getProfileById("ubuntu-cli");
-      const ubuntuGui = getProfileById("ubuntu-gui");
-      const blackarch = getProfileById("blackarch-exp");
+  describe("Profiles & Custom Media", () => {
+    it("ships only profiles that boot without user-supplied media", () => {
+      const ids = PROFILES.map((p) => p.id);
+      expect(ids).not.toContain("kali-cli");
+      expect(ids).not.toContain("kali-gui");
+      expect(ids).not.toContain("ubuntu-cli");
+      expect(ids).not.toContain("ubuntu-gui");
+      expect(ids).not.toContain("blackarch-exp");
 
-      expect(kaliCli.needsCustomMedia).toBe(true);
-      expect(kaliGui.needsCustomMedia).toBe(true);
-      expect(ubuntuCli.needsCustomMedia).toBe(true);
-      expect(ubuntuGui.needsCustomMedia).toBe(true);
-      expect(blackarch.needsCustomMedia).toBe(true);
-
-      expect(kaliCli.memorySize).toBeGreaterThanOrEqual(768 * 1024 * 1024);
-      expect(kaliGui.memorySize).toBeGreaterThanOrEqual(1024 * 1024 * 1024);
-      expect(blackarch.memorySize).toBeGreaterThanOrEqual(768 * 1024 * 1024);
+      for (const profile of PROFILES) {
+        const hasBootMedia = Boolean(
+          profile.bzimageUrl || profile.stateUrl || profile.cdromUrl || profile.fdaUrl || profile.hdaUrl || profile.filesystem?.basefsUrl
+        );
+        expect(hasBootMedia, `${profile.id} has no boot media`).toBe(true);
+      }
     });
 
     it("identifies profiles that support 9P VirtIO filesystem vs CDROM/raw", () => {
@@ -35,8 +33,8 @@ describe("UX Enhancements & Accessibility Verification", () => {
     });
 
     it("validates custom media image URLs (.iso, .img, .bin, .raw)", () => {
-      expect(validateIsoUrl("https://example.com/custom-kali.iso", "http:")).toBe("https://example.com/custom-kali.iso");
-      expect(validateIsoUrl("https://example.com/ubuntu-mini.img", "http:")).toBe("https://example.com/ubuntu-mini.img");
+      expect(validateIsoUrl("https://example.com/alpine.iso", "http:")).toBe("https://example.com/alpine.iso");
+      expect(validateIsoUrl("https://example.com/tinycore.img", "http:")).toBe("https://example.com/tinycore.img");
       expect(validateIsoUrl("https://example.com/disk.raw", "http:")).toBe("https://example.com/disk.raw");
       expect(validateIsoUrl("https://example.com/boot.bin", "http:")).toBe("https://example.com/boot.bin");
     });
@@ -46,6 +44,10 @@ describe("UX Enhancements & Accessibility Verification", () => {
     it("returns default profile when an unknown ID is provided", () => {
       const fallback = getProfileById("nonexistent-profile");
       expect(fallback).toBe(PROFILES[0]);
+    });
+
+    it("falls back to the default profile for removed profile links", () => {
+      expect(getProfileById("kali-cli")).toBe(PROFILES[0]);
     });
   });
 });

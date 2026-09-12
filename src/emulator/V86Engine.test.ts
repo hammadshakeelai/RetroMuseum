@@ -254,12 +254,6 @@ describe("Error handling and boot resilience", () => {
     expect(engine.getStatus()).toBe("error");
   });
 
-  it("rejects profiles requiring custom media before initializing emulator", async () => {
-    engine = new V86Engine({ ...profile, needsCustomMedia: true }, { mode: "offline", channelName: "test" });
-    await expect(engine.start(container)).rejects.toThrow(/requires boot media/);
-    expect(engine.getStatus()).toBe("error");
-  });
-
   it("handles restoreState error and notifies onError callback", async () => {
     const onError = vi.fn();
     await boot({}, { onError });

@@ -71,7 +71,6 @@ export class V86Engine {
     this.setStatus("booting");
 
     try {
-      if (this.profile.needsCustomMedia) throw new Error("This profile requires boot media. Use Mount ISO to select a 32-bit image.");
       const V86Constructor = await loadRuntime();
       if (this.disposed) return;
       // Ensure screen container has expected sub-elements for v86 ScreenAdapter

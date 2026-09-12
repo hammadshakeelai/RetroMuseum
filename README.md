@@ -8,6 +8,11 @@
 
 Run real operating systems directly inside your browser—**no backend servers, no Docker containers, no cloud VM costs**.
 
+<p align="center">
+  <img src="docs/screenshots/kolibrios-desktop.png" alt="The KolibriOS desktop running inside Browser Linux Lab" width="100%">
+</p>
+<p align="center"><em>KolibriOS booted from a 1.44 MB floppy image, running entirely in the browser.</em></p>
+
 ---
 
 ## ✨ Features

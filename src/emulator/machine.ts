@@ -1,6 +1,5 @@
 import type { V86Block } from "../lib/v86-block.ts";
 import { DownloadMeter, StallWatch } from "./downloads.ts";
-import { fitScale, type Size } from "./fit.ts";
 
 export type MachineError = "download" | "stalled" | "no-wasm";
 
@@ -20,8 +19,6 @@ export interface DownloadProgress {
 export interface Emulator {
   add_listener(event: "download-progress", listener: (progress: DownloadProgress) => void): void;
   add_listener(event: "download-error" | "screen-set-size", listener: () => void): void;
-  screen_set_scale(sx: number, sy: number): void;
-  screen_go_fullscreen(): void;
   lock_mouse(): void;
   keyboard_send_scancodes(codes: number[]): void;
   destroy(): Promise<void>;
@@ -38,7 +35,6 @@ export interface Runtime {
 export interface MachineDeps {
   create(options: Record<string, unknown>): Promise<Emulator>;
   hasWebAssembly(): boolean;
-  devicePixelRatio(): number;
   now(): number;
   /** Calls `fn` every `ms` milliseconds and returns a function that stops it. */
   every(ms: number, fn: () => void): () => void;
@@ -64,7 +60,7 @@ export function v86Options(block: V86Block, runtime: Runtime, container: HTMLEle
     wasm_path: runtime.wasmUrl,
     bios: { url: runtime.biosUrl },
     vga_bios: { url: runtime.vgaBiosUrl },
-    screen: { container, use_graphical_text: true },
+    screen: { container, use_graphical_text: false },
     autostart: true,
   };
 }
@@ -113,22 +109,6 @@ export class Machine {
   async stop(): Promise<void> {
     await this.teardown();
     this.setState({ kind: "idle" });
-  }
-
-  /**
-   * v86's ScreenAdapter divides the scale by a fractional devicePixelRatio (to keep pixels sharp), and
-   * leaves the canvas size alone when the result is exactly 1, so both are undone here.
-   */
-  fit(area: Size, content: Size): void {
-    let scale = fitScale(area, content);
-    if (scale === 1) scale += 1e-9;
-    const ratio = this.deps.devicePixelRatio();
-    if (ratio % 1 !== 0) scale *= ratio;
-    this.emulator?.screen_set_scale(scale, scale);
-  }
-
-  fullscreen(): void {
-    this.emulator?.screen_go_fullscreen();
   }
 
   captureMouse(): void {

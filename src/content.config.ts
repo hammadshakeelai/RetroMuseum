@@ -18,6 +18,7 @@ const exhibits = defineCollection({
         summary: z.string().min(1).max(140),
         downloadEstimateMB: z.number().positive(),
         screenshotWaitSeconds: z.number().int().positive().default(120),
+        screenshotInput: z.string().min(1).optional(),
         facts: z.record(z.string(), z.string()),
         tryThis: z.array(z.string().min(1)).min(1),
         homepage: z.url().optional(),

@@ -11,6 +11,7 @@ import { createServer } from "vite";
 import { copyShUrl } from "../src/lib/exhibits.ts";
 import { readExhibits, updateExhibitFile } from "./exhibits.ts";
 import type { Harness } from "./screenshots/harness.ts";
+import { keyPresses } from "./screenshots/keys.ts";
 
 const root = (path: string) => fileURLToPath(new URL(`../${path}`, import.meta.url));
 const args = process.argv.slice(2);
@@ -76,6 +77,11 @@ for (const exhibit of exhibits) {
     screen = "#screen .v86-screen";
   }
   await page.waitForTimeout(waitSeconds * 1000);
+  const input = typeof exhibit.data.screenshotInput === "string" ? exhibit.data.screenshotInput : "";
+  if (input) {
+    for (const key of keyPresses(input)) await page.keyboard.press(key, { delay: 30 });
+    await page.waitForTimeout(3000);
+  }
 
   let reason = profile ? "" : ((await page.evaluate(() => window.harness.error())) ?? "");
   let png: Buffer | null = null;

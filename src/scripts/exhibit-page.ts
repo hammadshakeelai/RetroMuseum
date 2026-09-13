@@ -1,6 +1,6 @@
 import wasmUrl from "v86/build/v86.wasm?url";
 import { Machine, type Emulator, type MachineState } from "../emulator/machine.ts";
-import { createScreen, naturalSize, type ScreenElements } from "../emulator/screen.ts";
+import { createScreen, fitScreen, type ScreenElements } from "../emulator/screen.ts";
 import type { V86Block } from "../lib/v86-block.ts";
 
 function element<T extends HTMLElement>(id: string): T {
@@ -31,7 +31,7 @@ if (blockData && section) {
     const fullscreen = document.fullscreenElement === screen.container;
     const rect = area.getBoundingClientRect();
     const size = fullscreen ? { width: innerWidth, height: innerHeight } : { width: rect.width, height: rect.height };
-    machine.fit(size, naturalSize(screen.canvas));
+    fitScreen(screen, size);
   };
 
   const render = (state: MachineState) => {
@@ -63,7 +63,6 @@ if (blockData && section) {
       return new V86(options as ConstructorParameters<typeof V86>[0]) as unknown as Emulator;
     },
     hasWebAssembly: () => typeof WebAssembly === "object",
-    devicePixelRatio: () => window.devicePixelRatio || 1,
     now: () => Date.now(),
     every: (ms, fn) => {
       const id = setInterval(fn, ms);
@@ -90,7 +89,11 @@ if (blockData && section) {
   element("restart").addEventListener("click", () => void boot());
   element("stop").addEventListener("click", () => void machine.stop());
   errorStop.addEventListener("click", () => void machine.stop());
-  element("fullscreen").addEventListener("click", () => machine.fullscreen());
+  element("fullscreen").addEventListener("click", () => {
+    // v86's screen_go_fullscreen only finds an element with the id screen_container.
+    screen.container.requestFullscreen().catch(() => {});
+    machine.captureMouse();
+  });
   element("capture").addEventListener("click", () => machine.captureMouse());
   element("ctrl-alt-del").addEventListener("click", () => machine.ctrlAltDel());
   live.addEventListener("click", () => machine.captureMouse());

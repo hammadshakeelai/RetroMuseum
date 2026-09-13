@@ -14,7 +14,6 @@ const container = {} as unknown as HTMLElement;
 
 class FakeEmulator implements Emulator {
   listeners = new Map<string, (argument?: unknown) => void>();
-  scale: [number, number] | null = null;
   scancodes: number[] = [];
   destroyed = false;
 
@@ -25,12 +24,6 @@ class FakeEmulator implements Emulator {
   emit(event: string, argument?: unknown): void {
     this.listeners.get(event)?.(argument);
   }
-
-  screen_set_scale(sx: number, sy: number): void {
-    this.scale = [sx, sy];
-  }
-
-  screen_go_fullscreen(): void {}
 
   lock_mouse(): void {}
 
@@ -43,7 +36,7 @@ class FakeEmulator implements Emulator {
   }
 }
 
-function setup(options: { wasm?: boolean; pixelRatio?: number; create?: () => Promise<FakeEmulator> } = {}) {
+function setup(options: { wasm?: boolean; create?: () => Promise<FakeEmulator> } = {}) {
   const states: MachineState[] = [];
   const created: Record<string, unknown>[] = [];
   const emulators: FakeEmulator[] = [];
@@ -58,7 +51,6 @@ function setup(options: { wasm?: boolean; pixelRatio?: number; create?: () => Pr
       return emulator;
     },
     hasWebAssembly: () => options.wasm ?? true,
-    devicePixelRatio: () => options.pixelRatio ?? 1,
     now: () => now,
     every: (_ms, fn) => {
       tick = fn;
@@ -88,7 +80,7 @@ describe("Machine", () => {
       wasm_path: "/v86.wasm",
       bios: { url: "/bios/seabios.bin" },
       vga_bios: { url: "/bios/vgabios.bin" },
-      screen: { container, use_graphical_text: true },
+      screen: { container, use_graphical_text: false },
       autostart: true,
     });
     expect(t.states.at(-1)).toEqual({ kind: "running", downloadedMB: 0 });
@@ -159,32 +151,6 @@ describe("Machine", () => {
     await t.machine.boot(block, runtime, container);
     expect(t.created).toHaveLength(0);
     expect(t.states.at(-1)).toEqual({ kind: "error", error: "no-wasm", downloadedMB: 0 });
-  });
-
-  it("fits the screen into its area", async () => {
-    const t = setup({ pixelRatio: 2 });
-    await t.machine.boot(block, runtime, container);
-    t.machine.fit({ width: 1440, height: 1000 }, { width: 720, height: 400 });
-    expect(t.emulators[0].scale).toEqual([2, 2]);
-  });
-
-  it("makes up for v86 dividing the scale by a fractional device pixel ratio", async () => {
-    const t = setup({ pixelRatio: 1.25 });
-    await t.machine.boot(block, runtime, container);
-    t.machine.fit({ width: 1440, height: 1000 }, { width: 720, height: 400 });
-    expect(t.emulators[0].scale).toEqual([2.5, 2.5]);
-  });
-
-  it("never leaves v86 with a scale of exactly 1, which it doesn't apply", async () => {
-    for (const pixelRatio of [1, 1.25]) {
-      const t = setup({ pixelRatio });
-      await t.machine.boot(block, runtime, container);
-      t.machine.fit({ width: 720, height: 400 }, { width: 720, height: 400 });
-      const [scale] = t.emulators[0].scale ?? [0];
-      const applied = pixelRatio % 1 === 0 ? scale : scale / pixelRatio;
-      expect(applied).not.toBe(1);
-      expect(applied).toBeCloseTo(1, 6);
-    }
   });
 
   it("asks the page to fit again when the guest changes its screen size", async () => {

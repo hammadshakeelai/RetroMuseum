@@ -78,6 +78,7 @@ license: open-source        # open-source | proprietary
 summary: A graphical operating system written in assembly that fits on one floppy disk.   # max 140 chars
 downloadEstimateMB: 2       # measured by the screenshot script
 screenshotWaitSeconds: 60   # optional, default 120: how long the screenshot script waits for a screen
+screenshotInput: "help\n"   # optional: what the screenshot script types after waiting, 3 seconds before the photo
 facts:
   Boot media: 1.44 MB floppy
 tryThis:
@@ -106,7 +107,7 @@ A copy.sh exhibit has the same fields up to `sources`, then:
 copyShProfile: windows95    # its page links to https://copy.sh/v86/?profile=windows95
 ```
 
-The `v86` block accepts the subset of v86 constructor options the hosted exhibits use: `memory_size`, `vga_memory_size`, `fda`, `cdrom`, `hda` (each with `url`, a file name, and optional `size` and `async`), `acpi`, `boot_order`, and `cpuid_level`. It has exactly one disk, whose `size` is the image's size in bytes. The page passes the block to v86 with that disk's `url` prefixed by the site's `images/` address, adding only `wasm_path`, `bios`, `vga_bios`, `screen` (the screen container, with text mode drawn on its canvas), and `autostart`.
+The `v86` block accepts the subset of v86 constructor options the hosted exhibits use: `memory_size`, `vga_memory_size`, `fda`, `cdrom`, `hda` (each with `url`, a file name, and optional `size` and `async`), `acpi`, `boot_order`, and `cpuid_level`. It has exactly one disk, whose `size` is the image's size in bytes. The page passes the block to v86 with that disk's `url` prefixed by the site's `images/` address, adding only `wasm_path`, `bios`, `vga_bios`, `screen` (the screen container, with v86's HTML text mode, as on v86's own site), and `autostart`.
 
 When copying a profile from v86's `src/browser/main.js`: arithmetic such as `64 * 1024 * 1024` is written out as a number, the disk's `host + "name"` becomes the file name, and `mac_address_translation` is dropped because exhibits have no network. A copy.sh exhibit takes the profile's `id` as its `copyShProfile`.
 
@@ -181,8 +182,8 @@ The proprietary exhibits are the seven Windows versions, MS-DOS 6.22, 86-DOS, an
 ### Booting and running
 
 1. **Boot it** loads the v86 runtime, replaces the screenshot with the live screen, and shows a progress bar of megabytes downloaded, from v86's `download-progress` event.
-2. The screen scales to fit its area and keeps its aspect ratio (`screen_set_scale`), and is never cropped.
-3. Toolbar: **Full screen** (`screen_go_fullscreen`), **Capture mouse** (`lock_mouse`), **Ctrl+Alt+Del** (`keyboard_send_scancodes`), **Restart**, **Stop**.
+2. The screen scales to fit its area and keeps its aspect ratio, and is never cropped. The page measures the layer v86 is showing (text or canvas) at the size v86 laid it out, and scales that layer with CSS.
+3. Toolbar: **Full screen** (`requestFullscreen` on the screen container), **Capture mouse** (`lock_mouse`), **Ctrl+Alt+Del** (`keyboard_send_scancodes`), **Restart**, **Stop**.
 4. Clicking the screen also captures the mouse and keyboard. A small hint says "Press Esc to release the mouse."
 5. **Stop**, or leaving the page (`pagehide`), calls `destroy()`, frees the machine, and shows the screenshot again.
 
@@ -216,7 +217,7 @@ Problems on copy.sh's own page are copy.sh's to show.
 - a hosted exhibit boots in a local harness page that serves `public/`, the way the site would;
 - a copy.sh exhibit opens `https://copy.sh/v86/?profile=<id>`.
 
-It waits that exhibit's `screenshotWaitSeconds` (default 120), photographs the emulator screen, checks that the picture isn't blank, and prints a report with each exhibit's pass or fail result and the megabytes of disk images and snapshots downloaded. With `--write` it saves each passing PNG and records the megabytes in `downloadEstimateMB`. The maintainer reviews the screenshots by eye and commits them through a normal pull request.
+It waits that exhibit's `screenshotWaitSeconds` (default 120), types its `screenshotInput` if it has one and waits 3 more seconds, photographs the emulator screen, checks that the picture isn't blank, and prints a report with each exhibit's pass or fail result and the megabytes of disk images and snapshots downloaded. With `--write` it saves each passing PNG and records the megabytes in `downloadEstimateMB`. The maintainer reviews the screenshots by eye and commits them through a normal pull request.
 
 It runs locally on purpose: a pull request opened by a workflow using `GITHUB_TOKEN` does not trigger CI, so branch protection would block it.
 
@@ -276,3 +277,4 @@ Both projects use the same "machine room" visual language. The theme CSS (about 
 ## 12. Revision history
 
 - **2026-09-13, during the build.** The approved design loaded every disk image from `i.copy.sh` in the visitor's browser. The first screenshot run got HTTP 403, and header tests showed `i.copy.sh` refuses requests that come from other sites. The old WebOS app had avoided this with a `no-referrer` policy. The owner chose to host small open-source images on RetroMuseum's site and to link the rest to copy.sh, rather than hide the `Referer`, link every exhibit to copy.sh, or ship only open-source exhibits. This revision changed sections 1 to 11 to match; snapshots, split images, and the i.copy.sh error message left the design with it.
+- **2026-09-13, while checking the first exhibits.** Screenshots of FreeDOS and ELKS showed ghosted text rows from v86's graphical text mode. On a 1920×1080 window, v86 also doubled a 320×200 canvas to twice the size of its area. The page now uses v86's HTML text mode, as v86's own site does, and scales whichever layer v86 shows with CSS after measuring it. Full screen now calls `requestFullscreen` on the screen itself, because v86's own full-screen call looks for an element RetroMuseum's pages don't have.

@@ -38,6 +38,7 @@ export interface Runtime {
 export interface MachineDeps {
   create(options: Record<string, unknown>): Promise<Emulator>;
   hasWebAssembly(): boolean;
+  devicePixelRatio(): number;
   now(): number;
   /** Calls `fn` every `ms` milliseconds and returns a function that stops it. */
   every(ms: number, fn: () => void): () => void;
@@ -114,8 +115,15 @@ export class Machine {
     this.setState({ kind: "idle" });
   }
 
+  /**
+   * v86's ScreenAdapter divides the scale by a fractional devicePixelRatio (to keep pixels sharp), and
+   * leaves the canvas size alone when the result is exactly 1, so both are undone here.
+   */
   fit(area: Size, content: Size): void {
-    const scale = fitScale(area, content);
+    let scale = fitScale(area, content);
+    if (scale === 1) scale += 1e-9;
+    const ratio = this.deps.devicePixelRatio();
+    if (ratio % 1 !== 0) scale *= ratio;
     this.emulator?.screen_set_scale(scale, scale);
   }
 

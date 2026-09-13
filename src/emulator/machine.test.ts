@@ -43,7 +43,7 @@ class FakeEmulator implements Emulator {
   }
 }
 
-function setup(options: { wasm?: boolean; create?: () => Promise<FakeEmulator> } = {}) {
+function setup(options: { wasm?: boolean; pixelRatio?: number; create?: () => Promise<FakeEmulator> } = {}) {
   const states: MachineState[] = [];
   const created: Record<string, unknown>[] = [];
   const emulators: FakeEmulator[] = [];
@@ -58,6 +58,7 @@ function setup(options: { wasm?: boolean; create?: () => Promise<FakeEmulator> }
       return emulator;
     },
     hasWebAssembly: () => options.wasm ?? true,
+    devicePixelRatio: () => options.pixelRatio ?? 1,
     now: () => now,
     every: (_ms, fn) => {
       tick = fn;
@@ -161,10 +162,29 @@ describe("Machine", () => {
   });
 
   it("fits the screen into its area", async () => {
-    const t = setup();
+    const t = setup({ pixelRatio: 2 });
     await t.machine.boot(block, runtime, container);
     t.machine.fit({ width: 1440, height: 1000 }, { width: 720, height: 400 });
     expect(t.emulators[0].scale).toEqual([2, 2]);
+  });
+
+  it("makes up for v86 dividing the scale by a fractional device pixel ratio", async () => {
+    const t = setup({ pixelRatio: 1.25 });
+    await t.machine.boot(block, runtime, container);
+    t.machine.fit({ width: 1440, height: 1000 }, { width: 720, height: 400 });
+    expect(t.emulators[0].scale).toEqual([2.5, 2.5]);
+  });
+
+  it("never leaves v86 with a scale of exactly 1, which it doesn't apply", async () => {
+    for (const pixelRatio of [1, 1.25]) {
+      const t = setup({ pixelRatio });
+      await t.machine.boot(block, runtime, container);
+      t.machine.fit({ width: 720, height: 400 }, { width: 720, height: 400 });
+      const [scale] = t.emulators[0].scale ?? [0];
+      const applied = pixelRatio % 1 === 0 ? scale : scale / pixelRatio;
+      expect(applied).not.toBe(1);
+      expect(applied).toBeCloseTo(1, 6);
+    }
   });
 
   it("asks the page to fit again when the guest changes its screen size", async () => {

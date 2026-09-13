@@ -27,6 +27,7 @@ document.getElementById("screen")?.append(screen.container);
 const machine = new Machine({
   create: async (options) => new V86(options as ConstructorParameters<typeof V86>[0]) as unknown as Emulator,
   hasWebAssembly: () => typeof WebAssembly === "object",
+  devicePixelRatio: () => window.devicePixelRatio || 1,
   now: () => Date.now(),
   every: (ms, fn) => {
     const id = setInterval(fn, ms);

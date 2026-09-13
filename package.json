@@ -1,46 +1,36 @@
 {
-  "name": "webos",
+  "name": "retromuseum",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "lint": "oxlint src scripts vite.config.ts --deny-warnings",
-    "preview": "vite preview",
-    "sync:runtime": "node scripts/sync-runtime.mjs",
-    "predev": "npm run sync:runtime",
-    "prebuild": "npm run sync:runtime",
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview --port 4321",
+    "lint": "oxlint --deny-warnings src",
+    "typecheck": "astro check",
     "test": "vitest run",
-    "hook:qa": "node scripts/hooks/qa-hook.mjs",
-    "hook:redteam": "node scripts/hooks/redteam-hook.mjs",
-    "hook:user": "node scripts/hooks/user-hook.mjs",
-    "hook:developer": "node scripts/hooks/developer-hook.mjs",
-    "hook:all": "node scripts/hooks/run-all.mjs"
-  },
-  "dependencies": {
-    "clsx": "^2.1.1",
-    "lucide-react": "^1.45.0",
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8",
-    "tailwind-merge": "^3.6.0",
-    "v86": "^0.5.458"
-  },
-  "devDependencies": {
-    "@tailwindcss/vite": "^4.3.3",
-    "@types/node": "^26.5.1",
-    "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.7",
-    "@vitejs/plugin-react": "^6.1.1",
-    "fake-indexeddb": "^6.2.5",
-    "happy-dom": "^20.14.5",
-    "oxlint": "^1.81.0",
-    "tailwindcss": "^4.3.3",
-    "typescript": "~7.0.2",
-    "vite": "^8.3.0",
-    "vitest": "^5.0.0"
+    "test:e2e": "playwright test",
+    "screenshots": "node scripts/screenshots.ts",
+    "health": "node scripts/exhibit-health.ts",
+    "readme-images": "node scripts/readme-images.ts"
   },
   "engines": {
     "node": ">=22.12.0"
+  },
+  "dependencies": {
+    "astro": "7.3.2",
+    "v86": "0.5.460"
+  },
+  "devDependencies": {
+    "@astrojs/check": "0.9.10",
+    "@playwright/test": "1.63.0",
+    "@types/node": "26.5.1",
+    "happy-dom": "20.14.5",
+    "oxlint": "1.82.0",
+    "typescript": "6.0.3",
+    "vite": "8.3.0",
+    "vitest": "5.0.0",
+    "yaml": "2.9.1"
   }
 }

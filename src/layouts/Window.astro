@@ -1,0 +1,51 @@
+---
+import "../styles/theme.css";
+
+interface Props {
+  title: string;
+  description: string;
+  current?: "hall" | "exhibits" | "about";
+  image?: string;
+}
+
+const { title, description, current, image } = Astro.props;
+const base = import.meta.env.BASE_URL;
+const pageTitle = `RetroMuseum: ${title}`;
+const canonical = new URL(Astro.url.pathname, Astro.site).href;
+const imageUrl = image ? new URL(image, Astro.site).href : undefined;
+const links = [
+  { id: "hall", href: base, label: "Exhibit hall" },
+  { id: "exhibits", href: `${base}exhibits/`, label: "All exhibits" },
+  { id: "about", href: `${base}about/`, label: "About" },
+];
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{pageTitle}</title>
+    <meta name="description" content={description} />
+    <link rel="icon" href={`${base}favicon.svg`} type="image/svg+xml" />
+    <link rel="canonical" href={canonical} />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:type" content="website" />
+    {imageUrl && <meta property="og:image" content={imageUrl} />}
+    <meta name="twitter:card" content={imageUrl ? "summary_large_image" : "summary"} />
+  </head>
+  <body>
+    <div class="window">
+      <div class="title-bar"><h1>{pageTitle}</h1></div>
+      <nav class="menu-bar" aria-label="Main">
+        {links.map((link) => (
+          <a href={link.href} aria-current={current === link.id ? "page" : undefined}>{link.label}</a>
+        ))}
+      </nav>
+      <main class="content">
+        <slot />
+      </main>
+    </div>
+  </body>
+</html>

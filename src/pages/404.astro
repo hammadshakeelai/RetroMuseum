@@ -1,0 +1,14 @@
+---
+import Window from "../layouts/Window.astro";
+
+const base = import.meta.env.BASE_URL;
+---
+<Window title="File not found" description="This page isn't in the RetroMuseum collection.">
+  <section class="window not-found" aria-labelledby="not-found-title">
+    <div class="title-bar" id="not-found-title">File not found</div>
+    <div class="dialog-body">
+      <p>The page you asked for isn't in the collection.</p>
+      <p><a class="bevel-button" href={base}>Back to the exhibit hall</a></p>
+    </div>
+  </section>
+</Window>

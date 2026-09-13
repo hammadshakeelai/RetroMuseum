@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>RetroMuseum banner</title>
+<style>
+  html, body { margin: 0; width: 1280px; height: 320px; background: #d9d2c0; font-family: Tahoma, Verdana, sans-serif; }
+  .window { position: absolute; left: 40px; top: 36px; width: 1200px; height: 248px; box-sizing: border-box; background: #c9c1ad; border: 3px solid; border-color: #f4efe2 #8a8472 #8a8472 #f4efe2; }
+  .title { background: linear-gradient(90deg, #000080, #1084d0); color: #fff; font-weight: bold; font-size: 22px; padding: 8px 14px; }
+  .body { display: flex; gap: 28px; padding: 18px 22px; align-items: flex-start; }
+  .copy h1 { margin: 0; font-size: 56px; color: #1d1d1d; letter-spacing: -0.01em; }
+  .copy p { margin: 10px 0 0; font-size: 22px; color: #3d3a30; max-width: 500px; }
+  .shelf { flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .exhibit { background: #f4efe2; border: 1px solid #8a8472; padding: 8px 10px; font-size: 16px; color: #3d3a30; }
+  .exhibit b { display: block; font-size: 18px; color: #1d1d1d; }
+</style>
+</head>
+<body>
+  <div class="window">
+    <div class="title">RetroMuseum: Exhibit hall</div>
+    <div class="body">
+      <div class="copy">
+        <h1>RetroMuseum</h1>
+        <p>Operating systems you can boot in your browser, with their stories.</p>
+      </div>
+      <div class="shelf">
+        <div class="exhibit"><b>Windows 1.01</b>1985</div>
+        <div class="exhibit"><b>FreeDOS</b>DOS, set free</div>
+        <div class="exhibit"><b>KolibriOS</b>On one floppy</div>
+        <div class="exhibit"><b>HelenOS</b>Microkernel</div>
+        <div class="exhibit"><b>ELKS</b>Linux for the 8086</div>
+        <div class="exhibit"><b>TetrOS</b>512 bytes</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

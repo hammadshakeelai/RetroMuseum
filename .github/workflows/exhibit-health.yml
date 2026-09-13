@@ -1,0 +1,48 @@
+name: Exhibit health
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    name: Check exhibits
+    runs-on: ubuntu-latest
+    env:
+      SITE_URL: https://hammadshakeelai.github.io/${{ github.event.repository.name }}/
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Check disk images and copy.sh profiles
+        id: health
+        continue-on-error: true
+        run: node scripts/exhibit-health.ts
+
+      - name: Open or update an issue
+        if: steps.health.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh label create exhibit-health --color d93f0b --description "Exhibits whose disk image or copy.sh profile has a problem" 2>/dev/null || true
+          number=$(gh issue list --label exhibit-health --state open --json number --jq '.[0].number')
+          if [ -n "$number" ]; then
+            gh issue comment "$number" --body-file exhibit-health.md
+          else
+            gh issue create --title "Exhibits need attention" --label exhibit-health --body-file exhibit-health.md
+          fi
+
+      - name: Fail the run
+        if: steps.health.outcome == 'failure'
+        run: exit 1

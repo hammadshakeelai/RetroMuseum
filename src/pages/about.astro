@@ -1,0 +1,34 @@
+---
+import Window from "../layouts/Window.astro";
+
+const repo = import.meta.env.BASE_URL.replaceAll("/", "");
+const repoUrl = `https://github.com/hammadshakeelai/${repo}`;
+---
+<Window
+  title="About"
+  description="What RetroMuseum is, the software it runs on, where its disk images come from, and how to ask for an exhibit to be removed."
+  current="about"
+>
+  <article class="story">
+    <h2>What this is</h2>
+    <p>RetroMuseum is a museum of operating systems you can boot in your browser. Each exhibit is a real operating system running in an emulated PC, with its story, its facts, and things to try.</p>
+    <p>Nothing is installed on your computer. When you press <strong>Boot it</strong>, the emulator starts in the page and downloads the exhibit's disk image as the system reads it.</p>
+
+    <h2>Credits</h2>
+    <p>Every exhibit runs in <a href="https://github.com/copy/v86">v86</a>, an x86 PC emulator by the v86 contributors.</p>
+    <p>Small open-source exhibits boot on this site, from disk images it hosts. Each of their pages names the image's license and links to its source code, and <a href={`${repoUrl}/blob/master/THIRD_PARTY_NOTICES.md`}>the third-party notices</a> list where each image came from.</p>
+    <p>The other exhibits open on <a href="https://copy.sh/v86/">copy.sh</a>, the v86 project's own site, which hosts their disk images.</p>
+
+    <h2>Licenses</h2>
+    <ul>
+      <li>RetroMuseum's own code: MIT.</li>
+      <li>v86: BSD-2-Clause.</li>
+      <li>SeaBIOS and SeaVGABIOS: GNU LGPL v3.</li>
+      <li>Each operating system keeps its own license. Copyrighted exhibits are shown for their history. They run on copy.sh, and RetroMuseum doesn't host or offer their disk images.</li>
+    </ul>
+
+    <h2>Asking for an exhibit to be removed</h2>
+    <p>If you hold rights to software shown here and want its exhibit removed, <a href={`${repoUrl}/issues/new?template=removal-request.yml`}>open a removal request</a>. A valid request is handled by deleting that exhibit.</p>
+    <p>The source code is on <a href={repoUrl}>GitHub</a>.</p>
+  </article>
+</Window>

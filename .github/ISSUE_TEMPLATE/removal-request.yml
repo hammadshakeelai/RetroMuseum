@@ -1,0 +1,26 @@
+name: Removal request
+description: Ask for an exhibit to be removed from RetroMuseum.
+title: "Removal request: "
+labels: ["removal-request"]
+body:
+  - type: markdown
+    attributes:
+      value: Use this form if you hold rights to software shown in RetroMuseum and want its exhibit removed. A valid request is handled by deleting that exhibit.
+  - type: input
+    id: exhibit
+    attributes:
+      label: Exhibit
+      description: The exhibit's name or the address of its page.
+    validations:
+      required: true
+  - type: textarea
+    id: rights
+    attributes:
+      label: Your connection to the software
+      description: For example, you hold its copyright or act for the holder.
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Anything else we should know

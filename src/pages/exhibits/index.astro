@@ -1,0 +1,35 @@
+---
+import { Image } from "astro:assets";
+import { getCollection } from "astro:content";
+import Window from "../../layouts/Window.astro";
+import { byYear } from "../../lib/exhibits.ts";
+import { familiesPresent, familyLabel } from "../../lib/families.ts";
+
+const base = import.meta.env.BASE_URL;
+const exhibits = (await getCollection("exhibits")).sort((a, b) => byYear(a.data, b.data));
+const families = familiesPresent(exhibits.map((exhibit) => exhibit.data.family));
+---
+<Window title="All exhibits" description="Every operating system in RetroMuseum, by family." current="exhibits">
+  <div class="filter" role="group" aria-label="Filter by family">
+    <button class="bevel-button" type="button" data-filter="all" aria-pressed="true">All</button>
+    {families.map((family) => (
+      <button class="bevel-button" type="button" data-filter={family} aria-pressed="false">{familyLabel(family)}</button>
+    ))}
+  </div>
+  <ul class="grid">
+    {exhibits.map((exhibit) => (
+      <li class="card" data-family={exhibit.data.family}>
+        <a href={`${base}exhibits/${exhibit.id}/`}>
+          <Image src={exhibit.data.screenshot} alt="" width={480} />
+          <h2>{exhibit.data.title}</h2>
+          <p>{exhibit.data.maker}, {exhibit.data.year}</p>
+          <p>{familyLabel(exhibit.data.family)}</p>
+          <p>{exhibit.data.v86 ? "Boots on this page" : "Runs on copy.sh"}</p>
+        </a>
+      </li>
+    ))}
+  </ul>
+</Window>
+<script>
+  import "../../scripts/filter.ts";
+</script>

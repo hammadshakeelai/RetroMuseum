@@ -1,0 +1,108 @@
+---
+import { Image, getImage } from "astro:assets";
+import { getCollection, render, type CollectionEntry } from "astro:content";
+import Window from "../../layouts/Window.astro";
+import { COPYRIGHT_LABEL, copyShLine, copyShUrl, downloadLine } from "../../lib/exhibits.ts";
+import { familyLabel } from "../../lib/families.ts";
+
+export async function getStaticPaths() {
+  const exhibits = await getCollection("exhibits");
+  return exhibits.map((exhibit) => ({ params: { slug: exhibit.id }, props: { exhibit } }));
+}
+
+interface Props {
+  exhibit: CollectionEntry<"exhibits">;
+}
+
+const { exhibit } = Astro.props;
+const { data } = exhibit;
+const { Content } = await render(exhibit);
+const preview = await getImage({ src: data.screenshot, width: 1200, format: "png" });
+const base = import.meta.env.BASE_URL;
+const alt = `${data.title} screenshot`;
+---
+<Window title={data.title} description={data.summary} current="exhibits" image={preview.src}>
+  {data.v86 ? (
+    <section class="exhibit-screen" data-estimate-mb={data.downloadEstimateMB} data-base={base}>
+      <div class="screen-area sunken" id="screen-area">
+        <div class="poster" id="poster">
+          <Image src={data.screenshot} alt={alt} width={1024} loading="eager" />
+          <div class="poster-overlay">
+            <button class="bevel-button boot-button" id="boot" type="button">Boot it</button>
+            <p class="download-line">{downloadLine(data.downloadEstimateMB)}</p>
+            <p class="touch-note">Best with a keyboard and mouse</p>
+            <p id="no-wasm" hidden>This exhibit can't run in this browser: it needs WebAssembly, which this browser doesn't support.</p>
+          </div>
+        </div>
+        <div class="live" id="live" hidden></div>
+      </div>
+      <div class="machine-toolbar" id="machine-toolbar" hidden>
+        <button class="bevel-button" id="fullscreen" type="button">Full screen</button>
+        <button class="bevel-button" id="capture" type="button">Capture mouse</button>
+        <button class="bevel-button" id="ctrl-alt-del" type="button">Ctrl+Alt+Del</button>
+        <button class="bevel-button" id="restart" type="button">Restart</button>
+        <button class="bevel-button" id="stop" type="button">Stop</button>
+        <div class="progress" aria-hidden="true"><div id="progress-bar"></div></div>
+        <span id="downloaded" aria-live="polite"></span>
+        <span class="hint">Press Esc to release the mouse.</span>
+      </div>
+      <dialog id="error-dialog" aria-labelledby="error-title">
+        <div class="title-bar" id="error-title">Disk image</div>
+        <p class="dialog-body" id="error-message">Couldn't load the disk image. Check your connection and try again.</p>
+        <div class="dialog-actions">
+          <button class="bevel-button" id="retry" type="button">Retry</button>
+          <button class="bevel-button" id="error-stop" type="button">Stop</button>
+        </div>
+      </dialog>
+      <script type="application/json" id="exhibit-v86" set:html={JSON.stringify(data.v86)}></script>
+    </section>
+  ) : (
+    <section class="exhibit-screen copy-sh">
+      <div class="screen-area sunken">
+        <div class="poster">
+          <Image src={data.screenshot} alt={alt} width={1024} loading="eager" />
+          <div class="poster-overlay">
+            <a class="bevel-button boot-button" id="run-on-copy-sh" href={copyShUrl(data.copyShProfile ?? "")}>Run it on copy.sh</a>
+            <p class="download-line">{copyShLine(data.downloadEstimateMB)}</p>
+            <p class="touch-note">Best with a keyboard and mouse</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  )}
+  {data.license === "proprietary" && <p class="copyright">{COPYRIGHT_LABEL}</p>}
+  <div class="exhibit-body">
+    <article class="story">
+      <p class="maker-year">{data.maker}, {data.year}. {familyLabel(data.family)}.</p>
+      <Content />
+    </article>
+    <aside>
+      <h2>Facts</h2>
+      <dl class="facts">
+        {Object.entries(data.facts).map(([name, value]) => (
+          <>
+            <dt>{name}</dt>
+            <dd>{value}</dd>
+          </>
+        ))}
+      </dl>
+      {data.diskImage && (
+        <p class="disk-image">
+          Disk image: {data.diskImage.license}.{data.diskImage.source && <> <a href={data.diskImage.source}>Source code</a></>}
+        </p>
+      )}
+      <h2>Things to try</h2>
+      <ul>
+        {data.tryThis.map((item) => <li>{item}</li>)}
+      </ul>
+      <h2>Sources</h2>
+      <ol>
+        {data.sources.map((source) => <li><a href={source}>{new URL(source).hostname}</a></li>)}
+      </ol>
+      {data.homepage && <p><a href={data.homepage}>Project homepage</a></p>}
+    </aside>
+  </div>
+</Window>
+<script>
+  import "../../scripts/exhibit-page.ts";
+</script>

@@ -94,13 +94,15 @@ v86:                        # boot settings, taken from v86's src/browser/main.j
 The story: a few short paragraphs, written from the sources above.
 ```
 
-The `v86` block accepts the subset of v86 constructor options the collection uses: `memory_size`, `vga_memory_size`, `fda`, `cdrom`, `hda` (each with `url` and optional `size`, `use_parts`, `fixed_chunk_size`, `async`), `initial_state` (with `url`), `acpi`, and `boot_order`. The page passes the block to v86 unchanged, adding only `wasm_path`, `bios`, `vga_bios`, and `screen_container`.
+The `v86` block accepts the subset of v86 constructor options the collection uses: `memory_size`, `vga_memory_size`, `fda`, `cdrom`, `hda` (each with `url` and optional `size`, `use_parts`, `fixed_chunk_size`, `async`), `initial_state` (with `url`), `acpi`, `boot_order`, and `cpuid_level`. The page passes the block to v86 unchanged, adding only `wasm_path`, `bios`, `vga_bios`, `screen` (the screen container, with text mode drawn on its canvas), and `autostart`.
+
+When copying a profile from v86's `src/browser/main.js`: its `state` becomes `initial_state` (the constructor's name for it), `host` becomes `https://i.copy.sh/`, arithmetic such as `64 * 1024 * 1024` is written out as a number, and `mac_address_translation` is dropped because exhibits have no network. Windows NT 4.0 keeps its `cpuid_level: 2`.
 
 The example values above are illustrative. Every real exhibit's facts, story, and year come from its listed sources, and its `v86` block from v86's own configuration for that profile.
 
 ## 5. The v1 collection
 
-All 29 were checked on 2026-09-13: each disk image and snapshot loads from i.copy.sh with HTTP 200 and `Access-Control-Allow-Origin: *`.
+All 29 were checked on 2026-09-13: the first request v86 makes for each disk image (the first part, for split images) and each snapshot returns HTTP 206 from i.copy.sh with `Access-Control-Allow-Origin: *`. KolibriOS loads from `https://i.copy.sh/kolibri.img`; the `builds.kolibrios.org` address in v86's own profile sends no CORS header, so a browser on RetroMuseum's site can't use it.
 
 | Family | Exhibits (v86 profile id) |
 | --- | --- |
@@ -178,12 +180,12 @@ Booting large exhibits is not part of pull-request CI. It is slow and depends on
 
 ### Migrating WebOS to RetroMuseum
 
-1. Rename the repo in GitHub settings from `WebOS` to `RetroMuseum`. GitHub redirects repo links and clones.
-2. On a `retromuseum` branch, delete the old app: `src/`, `scripts/`, the old contents of `public/` (including the bundled Linux kernel image), `docs/banner/`, `docs/screenshots/`, and `docs/DEPLOYMENT.md`. Add the Astro site, including its own `public/bios/`. Git history keeps the old code recoverable.
-3. In the same branch, switch `ci.yml` and `deploy.yml` to the Astro build, keeping the CI job name "Lint, test, and build" so the required check still matches. The pull request's own checks then exercise the new site.
-4. Keep branch protection on `master`, the `github-pages` environment and its `master` deployment policy, and Dependabot.
-5. Update `README.md` (new banner and screenshots), keep `LICENSE` (MIT), and update `THIRD_PARTY_NOTICES.md` to cover v86 (BSD-2-Clause) and SeaBIOS/VGABIOS (LGPL-3.0). Removing the bundled Linux kernel image also removes the old GPL source obligation.
-6. Merge the pull request once CI passes.
+1. On a `retromuseum` branch, delete the old app: `src/`, `scripts/`, the old contents of `public/` except `public/bios/` (this removes the bundled Linux kernel image), `docs/banner/`, `docs/screenshots/`, and `docs/DEPLOYMENT.md`. Add the Astro site. Git history keeps the old code recoverable.
+2. In the same branch, switch `ci.yml` and `deploy.yml` to the Astro build, keeping the CI job name "Lint, test, and build" so the required check still matches. The site's base path comes from the repository name, so the same workflows publish to `/WebOS/` before the rename and `/RetroMuseum/` after it.
+3. Keep branch protection on `master`, the `github-pages` environment and its `master` deployment policy, and Dependabot.
+4. Update `README.md` (new banner and screenshots), keep `LICENSE` (MIT), and update `THIRD_PARTY_NOTICES.md` to cover v86 (BSD-2-Clause) and SeaBIOS/VGABIOS (LGPL-3.0). Removing the bundled Linux kernel image also removes the old GPL source obligation.
+5. Merge the pull request once CI passes, with the first exhibits that pass the boot check. The rest of the collection follows in a second pull request.
+6. Once the new site is live at `/WebOS/`, rename the repo in GitHub settings from `WebOS` to `RetroMuseum` and run the deploy again. GitHub redirects repo links and clones; the old `/WebOS/` site address stops working.
 
 ### Shared with LinuxWeb
 

@@ -1975,7 +1975,7 @@ git commit -m "feat: add the first exhibits: boot-sector programs, FreeDOS, Koli
 - [ ] **Step 2: Run the tests**
 
 Run: `npm run images; npm run build; npm run test:e2e`
-Expected: 6 passed. If test 5 fails only because `astro preview` doesn't serve `404.html`, confirm `dist/404.html` exists and adjust only the test's navigation (GitHub Pages serves `404.html`).
+Expected: 7 passed, the seventh being "a small graphics screen fits its area on a large window" (FloppyBird on a 1920×1080 viewport, added in Task 7 with the screen-scaling fix). If test 5 fails only because `astro preview` doesn't serve `404.html`, confirm `dist/404.html` exists and adjust only the test's navigation (GitHub Pages serves `404.html`).
 
 - [ ] **Step 3: Verify and commit**
 
@@ -2066,7 +2066,7 @@ Run: `npm run images; npm run build`, the preview in the background, `npm run re
 - [ ] **Step 3: Final local checks**
 
 Run: `npm run lint; npm run typecheck; npm test; npm run images; npm run build; npm run test:e2e`
-Expected: all exit 0, 6 end-to-end tests passed.
+Expected: all exit 0, 7 end-to-end tests passed.
 
 - [ ] **Step 4: Commit, push, and open the pull request**
 

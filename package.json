@@ -7,7 +7,7 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview --port 4321",
-    "lint": "oxlint --deny-warnings src scripts",
+    "lint": "oxlint --deny-warnings src scripts e2e",
     "typecheck": "astro check",
     "test": "vitest run",
     "test:e2e": "playwright test",

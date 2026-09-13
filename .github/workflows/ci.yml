@@ -38,3 +38,5 @@ jobs:
 
       - run: npm run images
       - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e

@@ -1,14 +1,13 @@
 # Third-Party Notices
 
-This project's own code is MIT-licensed (see [LICENSE](LICENSE)). The components below are redistributed in this repository and on the deployed site, each under its own license.
+RetroMuseum's own code is MIT-licensed (see [LICENSE](LICENSE)). The site redistributes the following, each under its own license.
 
 ## v86
 
-Files: `public/v86/libv86.js`, `public/v86/v86.wasm`, `public/v86/v86-fallback.wasm`
+The emulator code bundled into the site and `v86.wasm`, both from the npm `v86` package, version 0.5.460.
 
 - Project: https://github.com/copy/v86
-- License: BSD-2-Clause (full text below)
-- The v86 build also contains Berkeley SoftFloat, zstd decompression, and floppy code ported from QEMU (MIT), each under its own license. See the v86 repository for details.
+- License: BSD-2-Clause (below). The v86 build also contains Berkeley SoftFloat, zstd decompression, and floppy code ported from QEMU, each under its own license; see the v86 repository.
 
 ```
 Copyright (c) 2012, The v86 contributors
@@ -37,21 +36,29 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ## SeaBIOS and SeaVGABIOS
 
-Files: `public/bios/seabios.bin`, `public/bios/vgabios.bin`
+`public/bios/seabios.bin` and `public/bios/vgabios.bin`.
 
 - Project: https://www.seabios.org/ (version `rel-1.16.2`)
 - License: GNU Lesser General Public License v3
 - Source: https://review.coreboot.org/seabios.git, tag `rel-1.16.2`
 
-## Linux kernel image
+## Operating systems hosted on this site
 
-File: `public/images/buildroot-bzimage.bin`
+These disk images are not stored in this repository. `npm run images` downloads each one from the address below and checks its SHA-256 (recorded in the exhibit's file under `src/content/exhibits/`), and the deploy publishes it in the site's `images/` folder. Each operating system remains under its own license.
 
-- Linux 5.6.15 kernel with a Buildroot (BusyBox) userspace, built by the v86 project in 2020
-- Licenses: the Linux kernel and BusyBox are under GPL-2.0; other Buildroot packages are under their own licenses
-- Upstream source: Linux 5.6.15 at https://cdn.kernel.org/pub/linux/kernel/v5.x/linux-5.6.15.tar.xz, Buildroot at https://buildroot.org, and BusyBox at https://busybox.net
-- The exact build configuration for this image has not been published. Replacing it with an image built from a published configuration is tracked in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+| Exhibit | Image | Downloaded from | License | Source code |
+| --- | --- | --- | --- | --- |
+| TetrOS | `tetros.img` | https://raw.githubusercontent.com/daniel-e/tetros/f0ebf20cd7bf81c8f7bbd3500892257057b0cee4/tetros.img | MIT | https://github.com/daniel-e/tetros |
+| SectorLISP | `sectorlisp-friendly.bin` | https://i.copy.sh/sectorlisp-friendly.bin | ISC | https://github.com/jart/sectorlisp/tree/friendly |
+| Floppy Bird | `floppybird.img` | https://raw.githubusercontent.com/icebreaker/floppybird/5c8f3d1fd6e5d8243240d49428bfad36ba95b909/build/iso/floppybird.img | MIT | https://github.com/icebreaker/floppybird |
+| BootChess | `bootchess.img` | https://i.copy.sh/bootchess.img | WTFPL | https://www.pouet.net/prod.php?which=64962 (the download archive includes the source) |
+| FreeDOS | `freedos722.img` | https://i.copy.sh/freedos722.img | GPL-2.0 (kernel and FreeCOM) and the licenses of its other programs | https://www.ibiblio.org/pub/micro/pc-stuff/freedos/files/ |
+| KolibriOS | `kolibri.img` | https://i.copy.sh/kolibri.img (automatic build r9913, 13 April 2023) | GPL-2.0 | https://git.kolibrios.org/KolibriOS/kolibrios |
+| HelenOS | `HelenOS-0.14.1-ia32.iso` | https://www.helenos.org/releases/HelenOS-0.14.1-ia32.iso | BSD, with some GPL components | https://www.helenos.org/releases/HelenOS-0.14.1-src.tar.bz2 |
+| ELKS | `elks-0.9.2-hd32-fat.img` | https://github.com/ghaerr/elks/releases/download/v0.9.2/hd32-fat.img | GPL-2.0 | https://github.com/ghaerr/elks/tree/v0.9.2 |
 
-## Operating system images loaded at runtime
+If you hold rights to one of these and want it removed, open a [removal request](https://github.com/hammadshakeelai/RetroMuseum/issues/new?template=removal-request.yml).
 
-The Arch Linux, Damn Small Linux, Linux 4.x, KolibriOS, and FreeDOS images are **not** in this repository. The browser downloads them from `https://i.copy.sh/`, and they remain under their respective licenses.
+## Operating systems on copy.sh
+
+The other exhibits open on https://copy.sh/v86/, the v86 project's own site, which hosts their disk images. RetroMuseum doesn't host or offer those images. The Windows, MS-DOS, 86-DOS, and BeOS exhibits are copyrighted software, shown for their history.

@@ -1,147 +1,49 @@
-<p align="center">
-  <a href="https://hammadshakeelai.github.io/WebOS/"><img src="docs/banner/readme-banner.png" alt="Browser Linux Lab: boot real operating systems in a browser tab" width="100%"></a>
-</p>
+<p align="center"><a href="https://hammadshakeelai.github.io/RetroMuseum/"><img src="docs/banner.png" alt="RetroMuseum: operating systems you can boot in your browser" width="100%"></a></p>
 
-> A modern, client-side Linux workstation and cyber training lab powered by WebAssembly and the [v86](https://copy.sh/v86/) x86 PC emulator.
+**Visit:** https://hammadshakeelai.github.io/RetroMuseum/
 
-**Live demo:** https://hammadshakeelai.github.io/WebOS/
+RetroMuseum is a museum of operating systems you can boot in your browser. Each exhibit is a real operating system running in the [v86](https://github.com/copy/v86) PC emulator, with its story, its facts, and things to try.
 
-Run real operating systems directly inside your browser—**no backend servers, no Docker containers, no cloud VM costs**.
+<p align="center"><img src="docs/screenshots/hall.png" alt="The RetroMuseum exhibit hall" width="100%"></p>
+<p align="center"><img src="docs/screenshots/exhibit.png" alt="KolibriOS running on its exhibit page" width="100%"></p>
 
-<p align="center">
-  <img src="docs/screenshots/kolibrios-desktop.png" alt="The KolibriOS desktop running inside Browser Linux Lab" width="100%">
-</p>
-<p align="center"><em>KolibriOS booted from a 1.44 MB floppy image, running entirely in the browser.</em></p>
+## Visiting
 
----
+- **Exhibit hall:** one exhibit at a time, with **Previous** and **Next**, and every exhibit in a strip below, oldest first.
+- **All exhibits:** every exhibit, filtered by family: DOS; Windows; Unix, BSD & Linux; Independent; Boot-sector.
+- **An exhibit:** small open-source systems boot right on their page with **Boot it**, from disk images RetroMuseum hosts. The page says roughly how much they download. The others open on copy.sh, the v86 project's own site, with **Run it on copy.sh**.
 
-## ✨ Features
+Every exhibit started to a working screen in RetroMuseum's screenshot check before it was added.
 
-- **⚡ Snapshot Resume Boots**: Pre-saved memory snapshots (`.bin.zst`) resume a running Arch Linux session straight to a shell prompt, skipping the kernel boot.
-- **📁 VirtIO 9P On-Demand Filesystem**: Downloads guest files over HTTP only when the guest kernel requests them, saving bandwidth.
-- **🛡️ In-Browser Cyber Training Lab (Split-Screen)**: Run two VMs side by side (e.g. an attacker box and a target) connected over an isolated browser `BroadcastChannel` virtual switch.
-- **💾 IndexedDB State Persistence**: Freeze, save, and restore VM memory states in browser storage, or export/import `.bin` snapshot files.
-- **💿 Mount Custom Media**: Boot your own 32-bit ISO or disk image.
-- **⌨️ Smart Keystrokes Deck**: Quick buttons for `Ctrl+C`, `Ctrl+Z`, `Ctrl+Alt+Del`, `Tab`, `Esc`, and `tty` console switching.
-- **📋 Host-to-Guest Clipboard & Drag-and-Drop**: Paste scripts into the terminal, or drop files onto the screen to copy them into the guest (9P profiles).
-- **📺 Retro CRT Filter & Display Scaling**: Switch between crisp pixel-perfect rendering and scanlines.
-- **🚀 100% Static Deployment**: Deployed to GitHub Pages by GitHub Actions; also works on Cloudflare Pages or Netlify.
+## Copyrighted exhibits
 
----
+Some exhibits are copyrighted software, shown for their history. They run on copy.sh, and RetroMuseum doesn't host or offer their disk images. If you hold rights to an exhibit and want it removed, [open a removal request](https://github.com/hammadshakeelai/RetroMuseum/issues/new?template=removal-request.yml).
 
-## 🐧 Operating Systems
+## Development
 
-### Ready to boot
+Requires Node 22.12 or newer.
 
-| Profile | Type | Boot media | Image host | Verified |
-| :--- | :---: | :--- | :--- | :---: |
-| **Micro Linux** (default) | CLI | Bundled Linux 5.6 kernel + BusyBox | This site (works offline) | ✅ |
-| **Arch Linux 32 (Terminal)** | CLI | Memory snapshot resume + 9P filesystem | i.copy.sh | ✅ |
-| **Arch Linux 32 (Desktop)** | GUI | Memory snapshot resume + 9P filesystem; the Xorg desktop starts automatically | i.copy.sh | ✅ |
-| **Arch Linux 32 (Cold Boot 9P)** | CLI | Full kernel boot, root on 9P (slow: 2+ minutes) | i.copy.sh | ⏳ |
-| **Damn Small Linux 4.11** | GUI | 53 MB live CD | i.copy.sh | ✅ |
-| **Linux 4.x Minimal Live CD** | CLI | 7 MB live CD | i.copy.sh | ✅ |
-| **KolibriOS** | GUI | 1.44 MB floppy | i.copy.sh | ✅ |
-| **FreeDOS 1.3** | CLI | 720 KB floppy | i.copy.sh | ✅ |
-
-✅ = booted to a shell prompt or desktop from a production build (2026-09-13). ⏳ = boot runs, but a login prompt hasn't been confirmed yet.
-
-### Your own image
-
-**Mount ISO** boots any 32-bit x86 `.iso`, `.img`, `.bin`, or `.raw` image from a URL or a file on your computer. v86 emulates a 32-bit CPU (Pentium 4 instruction set), so `x86_64`-only images won't boot.
-
-> **External image host:** Profiles marked *i.copy.sh* download their images from the v86 project's public image server. It allows cross-origin loading today, but this project doesn't control it. If that changes, those profiles stop booting; Micro Linux keeps working. See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for the mirroring plan.
-
----
-
-## 🚀 Quick Start
-
-Requires Node.js 22.12 or newer.
-
-### 1. Install Dependencies
 ```bash
-git clone https://github.com/hammadshakeelai/WebOS.git
-cd WebOS
 npm install
+npm run images         # download the hosted disk images into public/images/
+npm run dev            # http://localhost:4321/RetroMuseum/
+npm test               # unit tests
+npm run typecheck
+npm run build && npm run test:e2e
 ```
 
-### 2. Development Server
-```bash
-npm run dev
-```
-Open [http://localhost:5173](http://localhost:5173) in your browser. `npm run dev` also copies the v86 runtime from `node_modules` into `public/v86/`.
+### Adding an exhibit
 
-### 3. Production Build
-```bash
-npm run build
-```
-Generates optimized static assets in `dist/`. Set `VITE_BASE_PATH` (e.g. `/WebOS/`) when hosting under a subpath.
+1. Create `src/content/exhibits/<slug>.md` from the exhibit's profile in v86's [`src/browser/main.js`](https://github.com/copy/v86/blob/master/src/browser/main.js). An exhibit is one of two kinds:
+   - **hosted**, for open-source systems with no snapshot and an image of at most 100 MB: a `diskImage` block (where to download it, its SHA-256, its license, and its source code) and a `v86` block with the image's file name;
+   - **on copy.sh**, for everything else: `copyShProfile` set to the profile's id.
 
-### 4. Quality Checks
-```bash
-npm run lint
-npm test
-npm run hook:all
-```
-`hook:all` runs the QA, security, UX, and lint + build hooks in `scripts/hooks/`.
+   See an existing exhibit for the other fields.
+2. Write its story, facts, and things to try from the sources you list.
+3. Run `npm run images`, then `npm run screenshots -- --only=<slug> --write`. It starts the exhibit, saves its screenshot, and records how much it downloads. Check the screenshot before committing.
 
----
+A weekly workflow checks that hosted images still download from their origins and load on the site, and that copy.sh still has each profile. It opens an issue if something breaks.
 
-## 🌐 Virtual Networking Modes
+## License
 
-1. **In-Browser Mesh (BroadcastChannel)** *(Default)*:
-   - Links VMs across tabs or split-screen panes locally.
-   - Zero external traffic—packets stay strictly inside the browser.
-2. **Offline**:
-   - Complete airgap.
-3. **WebSocket Relay (wsproxy)**:
-   - Relays Ethernet frames through a WebSocket relay you configure, to reach the live internet. Traffic passes through whoever runs that relay.
-
----
-
-## 📦 Deployment
-
-Every push to `master` runs lint and tests, builds with the repository name as the base path, and publishes to GitHub Pages ([`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)).
-
-The full plan (rollback, hardening, and mirroring OS images) is in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
-
----
-
-## 🗂️ Project Architecture
-
-```
-WebOS/
-├── public/
-│   ├── bios/                  # SeaBIOS and VGABIOS binaries
-│   ├── images/                # Bundled offline micro-Linux kernel
-│   └── v86/                   # v86.wasm & libv86.js
-├── src/
-│   ├── emulator/
-│   │   ├── V86Engine.ts       # Core TypeScript wrapper for v86 lifecycle
-│   │   ├── useV86.ts          # React hook
-│   │   ├── storage.ts         # IndexedDB snapshots
-│   │   ├── networking.ts      # BroadcastChannel mesh adapter
-│   │   ├── security.ts        # URL, path, and snapshot validation
-│   │   └── clipboard.ts       # Keystroke scancodes & typing bridge
-│   ├── profiles/
-│   │   └── index.ts           # OS profiles
-│   ├── components/
-│   │   ├── layout/            # Header
-│   │   ├── vm/                # Viewport, Toolbar, QuickKeysDeck
-│   │   └── modals/            # Snapshots, Network, Paste, Logs, Mount Media
-│   ├── App.tsx
-│   └── index.css              # Tailwind CSS + CRT scanline styles
-├── scripts/                   # Runtime sync, quality hooks, browser test runners
-├── docs/
-│   └── DEPLOYMENT.md          # Deployment plan
-└── .github/workflows/
-    └── deploy.yml             # Automated GitHub Pages CI/CD
-```
-
----
-
-## 📄 License
-
-MIT — see [LICENSE](LICENSE).
-
-This project bundles the [v86](https://github.com/copy/v86) emulator (BSD-2-Clause), BIOS firmware, and a Linux kernel image, each under its own license. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+MIT. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for v86, SeaBIOS, and the operating systems shown.

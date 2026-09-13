@@ -1267,15 +1267,23 @@ export class StallWatch {
 
 `src/emulator/blank.ts`:
 ```ts
-/** True when fewer than `minFraction` of the RGBA pixels differ from the first pixel. */
+/**
+ * True when fewer than `minFraction` of the RGBA pixels differ from the screen's most common
+ * colour. Measuring against the most common colour (not the first pixel) keeps a cursor or a
+ * character in the top-left corner from making an empty screen look busy.
+ */
 export function isBlank(pixels: Uint8ClampedArray, minFraction = 0.0005): boolean {
   const count = Math.floor(pixels.length / 4);
   if (count === 0) return true;
-  let different = 0;
+  const colors = new Map<number, number>();
+  let mostCommon = 0;
   for (let i = 0; i < count * 4; i += 4) {
-    if (pixels[i] !== pixels[0] || pixels[i + 1] !== pixels[1] || pixels[i + 2] !== pixels[2]) different++;
+    const color = (pixels[i] << 16) | (pixels[i + 1] << 8) | pixels[i + 2];
+    const seen = (colors.get(color) ?? 0) + 1;
+    colors.set(color, seen);
+    if (seen > mostCommon) mostCommon = seen;
   }
-  return different / count < minFraction;
+  return (count - mostCommon) / count < minFraction;
 }
 ```
 

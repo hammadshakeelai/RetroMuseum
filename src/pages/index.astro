@@ -1,0 +1,53 @@
+---
+import { Image, getImage } from "astro:assets";
+import { getCollection } from "astro:content";
+import Window from "../layouts/Window.astro";
+import { byYear } from "../lib/exhibits.ts";
+
+const base = import.meta.env.BASE_URL;
+const exhibits = (await getCollection("exhibits")).sort((a, b) => byYear(a.data, b.data));
+const hall = await Promise.all(
+  exhibits.map(async (exhibit) => ({
+    title: exhibit.data.title,
+    makerYear: `${exhibit.data.maker}, ${exhibit.data.year}`,
+    summary: exhibit.data.summary,
+    href: `${base}exhibits/${exhibit.id}/`,
+    image: (await getImage({ src: exhibit.data.screenshot, width: 960 })).src,
+    alt: `${exhibit.data.title} running in RetroMuseum`,
+  })),
+);
+const first = hall[0];
+---
+<Window title="Exhibit hall" description="A museum of operating systems you can boot in your browser." current="hall" image={first?.image}>
+  {first && (
+    <>
+      <section class="hall" aria-label="Featured exhibit">
+        <div class="sunken">
+          <img id="featured-image" src={first.image} alt={first.alt} width="960" />
+        </div>
+        <div class="placard" aria-live="polite">
+          <h2 id="featured-title">{first.title}</h2>
+          <p class="maker-year" id="featured-maker-year">{first.makerYear}</p>
+          <p id="featured-summary">{first.summary}</p>
+          <a class="bevel-button" id="visit" href={first.href}>Visit exhibit</a>
+          <div class="hall-controls">
+            <button class="bevel-button" id="previous" type="button">Previous</button>
+            <button class="bevel-button" id="next" type="button">Next</button>
+          </div>
+        </div>
+      </section>
+      <nav class="strip" aria-label="Every exhibit, oldest first">
+        {exhibits.map((exhibit, index) => (
+          <button type="button" data-hall-index={index} aria-current={index === 0 ? "true" : "false"}>
+            <Image src={exhibit.data.screenshot} alt="" width={240} />
+            {exhibit.data.title} ({exhibit.data.year})
+          </button>
+        ))}
+      </nav>
+      <script type="application/json" id="hall-data" set:html={JSON.stringify(hall)}></script>
+    </>
+  )}
+</Window>
+<script>
+  import "../scripts/hall.ts";
+</script>

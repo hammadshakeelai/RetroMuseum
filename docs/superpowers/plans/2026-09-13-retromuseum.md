@@ -2,9 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace the WebOS app with RetroMuseum: an Astro static site where every exhibit page boots a real operating system in v86, with an exhibit hall, an All exhibits grid, sourced history, a weekly disk-image health check, and the repo renamed at the end.
+> **Revised 2026-09-13, during Task 4 (spec section 12).** `i.copy.sh` refuses disk-image requests that come from other sites, so small open-source exhibits are now hosted on RetroMuseum's site and the rest open on copy.sh. Tasks 1 to 3 were finished before the revision and are kept as written; Task 4 amends their v86 block schema and `Machine`, and removes `src/lib/parts.ts`. Tasks 4 to 12 are the revised tasks. They give exact interfaces, behaviour, tests, settings, and commands; the code for each is in that task's commit.
 
-**Architecture:** Astro 7 builds a static site from one Markdown file per exhibit, validated by a content collection whose schema includes the v86 boot settings. Exhibit pages import v86 only when **Boot it** is pressed; a small `Machine` class (unit-tested against a fake emulator) owns booting, download progress, stall detection, errors, and screen fitting. A local Playwright script boots each exhibit in a Vite-served harness page to take its screenshot and measure its download, and a weekly workflow requests every exhibit's first disk-image bytes from i.copy.sh.
+**Goal:** Replace the WebOS app with RetroMuseum: an Astro static site of operating-system exhibits, where small open-source systems boot in v86 on their own page from disk images the site hosts and the others open on copy.sh, with an exhibit hall, an All exhibits grid, sourced history, a weekly health check, and the repo renamed at the end.
+
+**Architecture:** Astro 7 builds a static site from one Markdown file per exhibit, validated by a content collection schema. A hosted exhibit carries its v86 boot settings and its disk image's origin, SHA-256, license, and source; `npm run images` downloads those images into `public/images/` before each build. A copy.sh exhibit carries a v86 profile id instead. Hosted exhibit pages import v86 only when **Boot it** is pressed; a small `Machine` class (unit-tested against a fake emulator) owns booting, download progress, stall detection, errors, and screen fitting. A local Playwright script photographs every exhibit, hosted ones in a Vite-served harness page and the others on copy.sh's own page, and a weekly workflow checks image origins, the live site, and v86's profile list.
 
 **Tech Stack:** Astro 7.3.2, TypeScript 6.0.3 with `@astrojs/check` 0.9.10, v86 0.5.460 (npm), Vitest 5.0.0, happy-dom 20.14.5, Playwright 1.63.0, oxlint 1.82.0, yaml 2.9.1, Vite 8.3.0 (screenshot harness only), Node 24, GitHub Actions, GitHub Pages.
 
@@ -18,26 +20,35 @@
 - Exact versions: `astro@7.3.2`, `v86@0.5.460`, `@astrojs/check@0.9.10`, `typescript@6.0.3`, `vitest@5.0.0`, `happy-dom@20.14.5`, `@playwright/test@1.63.0`, `oxlint@1.82.0`, `yaml@2.9.1`, `vite@8.3.0`, `@types/node@26.5.1`. TypeScript stays on 6.x: `@astrojs/check` 0.9.10 peers `typescript@^5 || ^6`.
 - No UI framework. Client scripts are plain TypeScript bundled by Astro. `v86` is imported with a dynamic `import("v86")` when **Boot it** is pressed.
 - Every `.ts` file uses explicit `.ts` import extensions and only erasable TypeScript syntax (no enums, no parameter properties, no namespaces), so Node 24 runs `scripts/*.ts` directly.
-- An exhibit's `v86` block allows only: `memory_size`, `vga_memory_size`, `fda`, `hda`, `cdrom` (each `url`, optional `size`, `async`, `use_parts`, `fixed_chunk_size`), `initial_state` (`url`), `acpi`, `boot_order`, `cpuid_level`. Converting from v86's `src/browser/main.js`: `state` becomes `initial_state`, `host` becomes `https://i.copy.sh/`, arithmetic becomes a number, `mac_address_translation` is dropped, and KolibriOS uses `https://i.copy.sh/kolibri.img`.
-- The page passes the block to v86 unchanged, adding only `wasm_path`, `bios`, `vga_bios`, `screen: { container, use_graphical_text: true }`, and `autostart: true`.
+- An exhibit is **hosted** (`diskImage` and `v86`) or a **copy.sh exhibit** (`copyShProfile`), never both and never neither.
+  - `v86` allows only `memory_size`, `vga_memory_size`, `fda`, `hda`, `cdrom` (each with `url`, a file name matching `^[A-Za-z0-9][A-Za-z0-9._-]*$`, `size` in bytes, and optional `async`), `acpi`, `boot_order`, `cpuid_level`, and has exactly one disk.
+  - `diskImage` has `from` (URL), `sha256` (64 lowercase hex characters), `license` (text), and optional `source` (URL).
+  - `copyShProfile` matches `^[a-z0-9-]+$`; the page links to `https://copy.sh/v86/?profile=<id>`.
+  - Converting from v86's `src/browser/main.js`: arithmetic becomes a number, `host + "name"` becomes the file name, `mac_address_translation` is dropped, and a copy.sh exhibit takes the profile's `id`.
+- The page passes the block to v86 with the disk's `url` prefixed by `<base>images/`, adding only `wasm_path`, `bios`, `vga_bios`, `screen: { container, use_graphical_text: true }`, and `autostart: true`.
 - The screen container has exactly the structure from v86's `examples/basic.html`: a `<div style="white-space: pre; font: 14px monospace; line-height: 14px">` followed by a `<canvas style="display: none">`.
-- v86 names the parts of a split image (`use_parts: true`) `<base>0-<fixed_chunk_size><extension>`, where the extension is the last suffix plus an optional `.zst`, and `-` is added to the base unless it ends in `/` (v86 `src/buffer.js`, `AsyncXHRPartfileBuffer`).
 - Stall rule: a download with a known length that started but got no new bytes for 60 seconds. Checked every 5 seconds. Downloads with unknown length, finished downloads, and time with no download never count.
 - Ctrl+Alt+Del scancodes (v86 `src/browser/main.js`): `[0x1d, 0x38, 0x53, 0x9d, 0xb8, 0xd3]`.
+- Hosted exhibits: `tetros`, `sectorlisp`, `floppybird`, `bootchess`, `freedos`, `kolibrios`, `duskos`, `oberon`, `helenos`, `elks`, `sortix`. copy.sh exhibits: `86dos`, `msdos`, `windows1`, `windows2`, `windows31`, `windows95`, `windows98`, `windowsnt4`, `windows2000`, `unix-v7`, `minix`, `openbsd`, `netbsd`, `dsl`, `beos`, `haiku`, `serenity`, `redox`.
+- Proprietary exhibits: `86dos`, `msdos`, `windows1`, `windows2`, `windows31`, `windows95`, `windows98`, `windowsnt4`, `windows2000`, `beos`. All others are `open-source`.
+- Disk images are never committed. `public/images/` is ignored by git and filled by `npm run images`, which runs before every build that is served or tested (CI, deploy, local end-to-end tests, screenshots). Hosted images total at most 500 MB, and none is over 100 MB.
+- A visitor's browser never requests `i.copy.sh` from RetroMuseum, and the site never sets a `no-referrer` policy to get around its rule.
 - User-facing text, exactly:
-  - Copyright label: "Copyrighted software, shown for its history. The disk image loads from copy.sh, the v86 project's server."
-  - Download line: "Downloads as it runs, about N MB to reach the desktop."
+  - Copyright label: "Copyrighted software, shown for its history. It runs on copy.sh, the v86 project's site; RetroMuseum doesn't host it."
+  - Download line (hosted): "Downloads as it runs, about N MB to reach the desktop."
+  - copy.sh button: "Run it on copy.sh". copy.sh line: "Opens on copy.sh, the v86 project's site, and downloads about N MB as it runs."
+  - Card lines: "Boots on this page", "Runs on copy.sh".
+  - Disk image line (hosted, under the facts): "Disk image: <license>." followed, when `source` is set, by a link "Source code".
   - Touch note: "Best with a keyboard and mouse"
-  - Download and stall dialog: "Couldn't reach the disk image server (i.copy.sh). It may be busy; try again in a minute."
+  - Download and stall dialog: title "Disk image", text "Couldn't load the disk image. Check your connection and try again."
   - No WebAssembly: "This exhibit can't run in this browser: it needs WebAssembly, which this browser doesn't support."
   - Mouse hint: "Press Esc to release the mouse."
   - Toolbar buttons: "Full screen", "Capture mouse", "Ctrl+Alt+Del", "Restart", "Stop". Screen button: "Boot it". Hall: "Visit exhibit", "Previous", "Next".
   - Window titles: "RetroMuseum: <page title>". 404: "File not found", "The page you asked for isn't in the collection.", link "Back to the exhibit hall".
 - Families, in display order: `dos` "DOS", `windows` "Windows", `unix-bsd-linux` "Unix, BSD & Linux", `independent` "Independent", `boot-sector` "Boot-sector".
-- Proprietary exhibits: `86dos`, `msdos`, `windows1`, `windows2`, `windows31`, `windows95`, `windows98`, `windowsnt4`, `windows2000`, `beos`. All others are `open-source`.
 - Required CI check name: `Lint, test, and build`. Keep branch protection, the `github-pages` environment, and Dependabot.
-- GitHub Actions versions: `actions/checkout@v7`, `actions/setup-node@v7`, `actions/configure-pages@v6`, `actions/upload-pages-artifact@v5`, `actions/deploy-pages@v5`.
-- Screenshots are taken locally only, never in CI. Disk images are never committed or published.
+- GitHub Actions versions: `actions/checkout@v7`, `actions/setup-node@v7`, `actions/cache@v6`, `actions/configure-pages@v6`, `actions/upload-pages-artifact@v5`, `actions/deploy-pages@v5`.
+- Screenshots are taken locally only, never in CI.
 - Rename the repo only after the new site is live at `/WebOS/` (Task 12).
 - Never `git add .` or `git add -A`: the repo root holds untracked personal files (a screen recording, screenshots, `.claude/`, `.impeccable/`, `.remember/`). Stage exact paths.
 
@@ -49,14 +60,15 @@ WebOS/ (renamed RetroMuseum in Task 12)
 │   ├── dependabot.yml                   # kept; TypeScript majors ignored
 │   ├── ISSUE_TEMPLATE/removal-request.yml
 │   └── workflows/
-│       ├── ci.yml                       # PRs: "Lint, test, and build"
-│       ├── deploy.yml                   # master: build, publish to Pages
-│       └── exhibit-health.yml           # weekly + on demand: probe disk images, open an issue
+│       ├── ci.yml                       # PRs: "Lint, test, and build" (fetches images, cached)
+│       ├── deploy.yml                   # master: fetch images, build, publish to Pages
+│       └── exhibit-health.yml           # weekly + on demand: origins, live site, v86 profiles
 ├── astro.config.mjs
 ├── package.json, package-lock.json, tsconfig.json, vitest.config.ts, playwright.config.ts
 ├── .oxlintrc.json, .gitignore
 ├── public/
 │   ├── bios/seabios.bin, bios/vgabios.bin   # kept from WebOS
+│   ├── images/                          # hosted disk images; ignored by git, filled by npm run images
 │   └── favicon.svg
 ├── src/
 │   ├── content.config.ts                # exhibits collection schema
@@ -64,11 +76,10 @@ WebOS/ (renamed RetroMuseum in Task 12)
 │   ├── content/exhibits/screenshots/<slug>.png
 │   ├── lib/
 │   │   ├── families.ts                  # family ids, labels, order
-│   │   ├── exhibits.ts                  # copyright label, download line, year sort
+│   │   ├── exhibits.ts                  # page text, copy.sh link, exhibit kind rule, year sort
 │   │   ├── filter.ts                    # family filter rule
 │   │   ├── hall.ts                      # Previous/Next index stepping
-│   │   ├── parts.ts                     # first URL v86 requests for an image
-│   │   └── v86-block.ts                 # Zod schema for the v86 block
+│   │   └── v86-block.ts                 # Zod schemas for the v86 block and the disk image
 │   ├── emulator/
 │   │   ├── fit.ts                       # fit-to-area scale
 │   │   ├── downloads.ts                 # megabytes downloaded, stall detection
@@ -84,15 +95,16 @@ WebOS/ (renamed RetroMuseum in Task 12)
 │   ├── pages/
 │   │   ├── index.astro                  # Exhibit hall
 │   │   ├── exhibits/index.astro         # All exhibits
-│   │   ├── exhibits/[slug].astro        # Exhibit page
+│   │   ├── exhibits/[slug].astro        # Exhibit page (hosted or copy.sh)
 │   │   ├── about.astro
 │   │   └── 404.astro
 │   └── **/*.test.ts                     # unit tests next to the code
 ├── scripts/
 │   ├── exhibits.ts (+ .test.ts)         # read and edit exhibit frontmatter
-│   ├── screenshots.ts                   # boot each exhibit, save screenshot, measure download
+│   ├── images.ts (+ .test.ts)           # download and verify hosted disk images
+│   ├── screenshots.ts                   # photograph each exhibit, measure its download
 │   ├── screenshots/index.html, harness.ts
-│   ├── exhibit-health.ts (+ .test.ts)   # weekly disk-image probe
+│   ├── exhibit-health.ts (+ .test.ts)   # weekly check
 │   └── readme-images.ts                 # banner and README screenshots
 ├── e2e/site.spec.ts
 ├── docs/banner.html, docs/banner.png, docs/screenshots/{hall,exhibit}.png
@@ -1479,373 +1491,157 @@ git commit -m "feat: add the emulator core: screen fitting, download meter, stal
 
 ---
 
-### Task 4: Content collection, exhibit file tools, screenshot script, and the TetrOS exhibit
+### Task 4: Hosted disk images, the collection schema, the screenshot script, and TetrOS
 
 **Files:**
-- Create: `src/content.config.ts`, `scripts/exhibits.ts`, `scripts/exhibits.test.ts`, `scripts/screenshots.ts`, `scripts/screenshots/index.html`, `scripts/screenshots/harness.ts`, `src/content/exhibits/tetros.md`, `src/content/exhibits/screenshots/tetros.png` (generated)
-- Modify: `package.json` (`lint` covers `scripts`)
+- Modify: `src/lib/v86-block.ts`, `src/lib/v86-block.test.ts`, `src/lib/exhibits.ts`, `src/lib/exhibits.test.ts`, `src/emulator/machine.ts`, `src/emulator/machine.test.ts`, `package.json`, `.gitignore`, `.github/workflows/ci.yml`, `.github/workflows/deploy.yml`
+- Delete: `src/lib/parts.ts`, `src/lib/parts.test.ts`
+- Create: `src/content.config.ts`, `scripts/exhibits.ts`, `scripts/exhibits.test.ts`, `scripts/images.ts`, `scripts/images.test.ts`, `scripts/screenshots.ts`, `scripts/screenshots/index.html`, `scripts/screenshots/harness.ts`, `src/content/exhibits/tetros.md`, `src/content/exhibits/screenshots/tetros.png` (generated)
 
 **Interfaces:**
-- Consumes: `FAMILY_IDS` (`src/lib/families.ts`), `v86BlockSchema`, `type V86Block` (`src/lib/v86-block.ts`), `Machine`, `type Emulator`, `type MachineState` (`src/emulator/machine.ts`), `createScreen` (`src/emulator/screen.ts`), `isBlank` (`src/emulator/blank.ts`).
+- Consumes: `FAMILY_IDS` (`src/lib/families.ts`), `Machine`, `type Emulator`, `type MachineState` (`src/emulator/machine.ts`), `createScreen` (`src/emulator/screen.ts`), `isBlank` (`src/emulator/blank.ts`).
 - Produces:
-  - Collection `exhibits`; `CollectionEntry<"exhibits">` with `id` (the file name) and `data`: `title`, `maker`, `year`, `family`, `license`, `summary`, `downloadEstimateMB`, `screenshotWaitSeconds`, `facts: Record<string, string>`, `tryThis: string[]`, `homepage?`, `screenshot` (image metadata), `sources: string[]`, `v86: V86Block`.
-  - `scripts/exhibits.ts`: `interface ExhibitFile { slug; path; data: Record<string, unknown> }`, `readFrontmatter(text: string): Record<string, unknown>`, `setFrontmatterValue(text: string, key: string, value: string | number): string`, `readExhibits(dir: string): Promise<ExhibitFile[]>`, `updateExhibitFile(path: string, values: Record<string, string | number>): Promise<void>`
-  - `scripts/screenshots/harness.ts`: `interface HarnessReport { blank: boolean; downloadedMB: number; error: string | null }`; `window.harness.boot(block)`, `window.harness.report()`
-  - `npm run screenshots -- [--only=a,b] [--write]`
+  - `src/lib/v86-block.ts`: `FILE_NAME: RegExp`, `v86BlockSchema`, `type V86Block`, `interface Disk { url: string; size: number; async?: boolean }`, `diskOf(block: V86Block): Disk`, `diskImageSchema`, `type DiskImage`.
+  - `src/lib/exhibits.ts`: `COPYRIGHT_LABEL`, `downloadLine(megabytes: number): string`, `copyShLine(megabytes: number): string`, `copyShUrl(profile: string): string`, `exhibitKindIssue(data: { v86?: unknown; diskImage?: unknown; copyShProfile?: unknown }): string | null`, `byYear`.
+  - `src/emulator/machine.ts`: `Runtime` gains `imageBase: string`; `v86Options` sets the disk's `url` to `imageBase + url`.
+  - Collection `exhibits`; `CollectionEntry<"exhibits">` `data`: `title`, `maker`, `year`, `family`, `license`, `summary`, `downloadEstimateMB`, `screenshotWaitSeconds`, `facts: Record<string, string>`, `tryThis: string[]`, `homepage?`, `screenshot` (image metadata), `sources: string[]`, `diskImage?: DiskImage`, `v86?: V86Block`, `copyShProfile?: string`.
+  - `scripts/exhibits.ts`: `interface ExhibitFile { slug; path; data: Record<string, unknown> }`, `readFrontmatter(text)`, `setFrontmatterValue(text, key, value)`, `readExhibits(dir)`, `updateExhibitFile(path, values)`.
+  - `scripts/images.ts`: `interface HostedImage { slug: string; file: string; size: number; from: string; sha256: string }`, `type Fetcher = (url: string) => Promise<Response>`, `MAX_TOTAL_BYTES` (500 MB), `hostedImages(exhibits: ExhibitFile[]): HostedImage[]`, `syncImages(images: HostedImage[], dir: string, options?: { fetcher?: Fetcher; maxTotalBytes?: number; log?: (line: string) => void }): Promise<void>`; `npm run images`.
+  - `scripts/screenshots/harness.ts`: `window.harness.boot(block: V86Block): Promise<void>`, `window.harness.error(): string | null`, `window.harness.isBlankPng(base64: string): Promise<boolean>`.
+  - `npm run screenshots -- [--only=a,b] [--write]`.
 
-- [ ] **Step 1: Write the failing exhibit-file tests**
+- [ ] **Step 1: Test the new v86 block and exhibit rules, and see them fail**
 
-`scripts/exhibits.test.ts`:
-```ts
-import { describe, expect, it } from "vitest";
-import { readFrontmatter, setFrontmatterValue } from "./exhibits.ts";
+`src/lib/v86-block.test.ts` covers, each as its own test:
+- a hosted profile passes: `memory_size: 268435456`, `cdrom: { url: "HelenOS-0.14.1-ia32.iso", size: 25792512, async: false }`, plus `acpi`, `boot_order`, `cpuid_level`;
+- snapshots, split images, and keys only v86's site uses fail: `initial_state`, `state`, `mac_address_translation`, a disk with `use_parts` or `fixed_chunk_size`;
+- exactly one disk: none fails, `fda` plus `hda` fails;
+- the disk needs `size`;
+- `url` is a file name: `https://i.copy.sh/tetros.img`, `../tetros.img`, and `images/tetros.img` fail;
+- `diskOf` returns the one disk;
+- `diskImageSchema` accepts `{ from, sha256, license }` with and without `source`, and rejects an uppercase or 63-character `sha256`, a missing `license`, and a `from` that isn't a URL.
 
-const file = `---
-title: TetrOS
-screenshotWaitSeconds: 30
-v86:
-  fda:
-    url: https://i.copy.sh/tetros.img
-    size: 512
----
+`src/lib/exhibits.test.ts` covers:
+- `COPYRIGHT_LABEL` is "Copyrighted software, shown for its history. It runs on copy.sh, the v86 project's site; RetroMuseum doesn't host it.";
+- `downloadLine(40)` is "Downloads as it runs, about 40 MB to reach the desktop.";
+- `copyShLine(40)` is "Opens on copy.sh, the v86 project's site, and downloads about 40 MB as it runs.";
+- `copyShUrl("windows95")` is `https://copy.sh/v86/?profile=windows95`;
+- `exhibitKindIssue` returns `null` for `{ v86, diskImage }` and for `{ copyShProfile }`, and a message for both kinds at once, for neither, for `v86` without `diskImage`, and for `diskImage` without `v86`;
+- `byYear` sorts by year, then title.
 
-The story.
-`;
+Run: `npx vitest run src/lib`
+Expected: FAIL (the new names aren't exported yet).
 
-describe("readFrontmatter", () => {
-  it("parses nested YAML", () => {
-    expect(readFrontmatter(file)).toEqual({
-      title: "TetrOS",
-      screenshotWaitSeconds: 30,
-      v86: { fda: { url: "https://i.copy.sh/tetros.img", size: 512 } },
-    });
-  });
+- [ ] **Step 2: Write them, point the machine at the site's images, and remove the part-name helper**
 
-  it("fails without frontmatter", () => {
-    expect(() => readFrontmatter("The story.")).toThrow("Missing frontmatter");
-  });
-});
+Write `src/lib/v86-block.ts` and `src/lib/exhibits.ts` to pass Step 1. In `src/emulator/machine.test.ts`, the first test becomes "passes the block to v86 with its disk in the site's images folder, adding only the runtime, screen and autostart": block `{ fda: { url: "tetros.img", size: 512 } }`, runtime with `imageBase: "/RetroMuseum/images/"`, expected options `{ fda: { url: "/RetroMuseum/images/tetros.img", size: 512 }, wasm_path, bios, vga_bios, screen: { container, use_graphical_text: true }, autostart: true }`. Change `v86Options` to match. Delete `src/lib/parts.ts` and `src/lib/parts.test.ts` (nothing loads split images now).
 
-describe("setFrontmatterValue", () => {
-  it("adds a missing key before the closing line and keeps the body", () => {
-    const updated = setFrontmatterValue(file, "downloadEstimateMB", 1);
-    expect(readFrontmatter(updated).downloadEstimateMB).toBe(1);
-    expect(updated.endsWith("---\n\nThe story.\n")).toBe(true);
-  });
+Run: `npx vitest run src`
+Expected: PASS.
 
-  it("replaces an existing top-level key without touching one that only shares its prefix", () => {
-    const withScreenshot = setFrontmatterValue(file, "screenshot", "./screenshots/old.png");
-    const updated = setFrontmatterValue(withScreenshot, "screenshot", "./screenshots/tetros.png");
-    const data = readFrontmatter(updated);
-    expect(data.screenshot).toBe("./screenshots/tetros.png");
-    expect(data.screenshotWaitSeconds).toBe(30);
-  });
+- [ ] **Step 3: Test and write the exhibit file tools**
 
-  it("doesn't touch nested keys with the same name", () => {
-    const updated = setFrontmatterValue(file, "size", 4);
-    const data = readFrontmatter(updated) as { size: number; v86: { fda: { size: number } } };
-    expect(data.size).toBe(4);
-    expect(data.v86.fda.size).toBe(512);
-  });
+`scripts/exhibits.test.ts` (6 tests) and `scripts/exhibits.ts`: `readFrontmatter` parses nested YAML and fails with "Missing frontmatter" or "Frontmatter isn't a mapping"; `setFrontmatterValue` adds a missing top-level key before the closing `---`, replaces an existing top-level key without touching one that only shares its prefix or a nested key of the same name, and keeps Windows line endings. In `package.json`, `lint` becomes `oxlint --deny-warnings src scripts`.
 
-  it("keeps Windows line endings", () => {
-    const updated = setFrontmatterValue(file.replaceAll("\n", "\r\n"), "downloadEstimateMB", 1);
-    expect(updated.includes("downloadEstimateMB: 1\r\n---\r\n")).toBe(true);
-  });
-});
-```
-
-- [ ] **Step 2: Run it to see it fail**
-
-Run: `npx vitest run scripts`
-Expected: FAIL, "Failed to load url ./exhibits.ts".
-
-- [ ] **Step 3: Write the exhibit file tools, the collection schema, and the lint change**
-
-`scripts/exhibits.ts`:
-```ts
-// Reads and edits exhibit Markdown files for the screenshot and health-check scripts.
-import { readdir, readFile, writeFile } from "node:fs/promises";
-import { join } from "node:path";
-import { parse } from "yaml";
-
-export interface ExhibitFile {
-  slug: string;
-  path: string;
-  data: Record<string, unknown>;
-}
-
-const FRONTMATTER = /^---\r?\n([\s\S]*?)\r?\n---(\r?\n|$)/;
-
-export function readFrontmatter(text: string): Record<string, unknown> {
-  const match = FRONTMATTER.exec(text);
-  if (!match) throw new Error("Missing frontmatter");
-  const data: unknown = parse(match[1]);
-  if (typeof data !== "object" || data === null) throw new Error("Frontmatter isn't a mapping");
-  return data as Record<string, unknown>;
-}
-
-/** Sets a top-level key: replaces its line, or adds it before the closing ---. */
-export function setFrontmatterValue(text: string, key: string, value: string | number): string {
-  const match = FRONTMATTER.exec(text);
-  if (!match) throw new Error("Missing frontmatter");
-  const newline = text.includes("\r\n") ? "\r\n" : "\n";
-  const lines = match[1].split(/\r?\n/);
-  const entry = `${key}: ${value}`;
-  const index = lines.findIndex((line) => line.startsWith(`${key}:`));
-  if (index >= 0) lines[index] = entry;
-  else lines.push(entry);
-  return `---${newline}${lines.join(newline)}${newline}---${match[2]}${text.slice(match[0].length)}`;
-}
-
-export async function readExhibits(dir: string): Promise<ExhibitFile[]> {
-  const names = (await readdir(dir)).filter((name) => name.endsWith(".md")).sort();
-  return Promise.all(
-    names.map(async (name) => {
-      const path = join(dir, name);
-      return { slug: name.slice(0, -3), path, data: readFrontmatter(await readFile(path, "utf8")) };
-    }),
-  );
-}
-
-export async function updateExhibitFile(path: string, values: Record<string, string | number>): Promise<void> {
-  let text = await readFile(path, "utf8");
-  for (const [key, value] of Object.entries(values)) text = setFrontmatterValue(text, key, value);
-  await writeFile(path, text);
-}
-```
-
-`src/content.config.ts`:
-```ts
-import { defineCollection } from "astro:content";
-import { glob } from "astro/loaders";
-import { z } from "astro/zod";
-import { FAMILY_IDS } from "./lib/families.ts";
-import { v86BlockSchema } from "./lib/v86-block.ts";
-
-const exhibits = defineCollection({
-  loader: glob({ base: "./src/content/exhibits", pattern: "*.md" }),
-  schema: ({ image }) =>
-    z.strictObject({
-      title: z.string().min(1),
-      maker: z.string().min(1),
-      year: z.number().int().min(1970).max(2030),
-      family: z.enum(FAMILY_IDS),
-      license: z.enum(["open-source", "proprietary"]),
-      summary: z.string().min(1).max(140),
-      downloadEstimateMB: z.number().positive(),
-      screenshotWaitSeconds: z.number().int().positive().default(120),
-      facts: z.record(z.string(), z.string()),
-      tryThis: z.array(z.string().min(1)).min(1),
-      homepage: z.url().optional(),
-      screenshot: image(),
-      sources: z.array(z.url()).min(1),
-      v86: v86BlockSchema,
-    }),
-});
-
-export const collections = { exhibits };
-```
-
-In `package.json`, change the `lint` script to:
-```json
-"lint": "oxlint --deny-warnings src scripts",
-```
-
-- [ ] **Step 4: Run the tests to see them pass**
-
-Run: `npx vitest run scripts`
+Run: `npx vitest run scripts/exhibits.test.ts`
 Expected: PASS (6 tests).
 
-- [ ] **Step 5: Write the screenshot harness and script**
+- [ ] **Step 4: Test the image downloader and see it fail**
 
-`scripts/screenshots/index.html`:
-```html
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <title>RetroMuseum screenshot harness</title>
-  </head>
-  <body style="margin: 0; background: #000">
-    <div id="screen"></div>
-    <script type="module" src="./harness.ts"></script>
-  </body>
-</html>
+`scripts/images.test.ts`, using a temporary directory and a fake fetcher that serves byte arrays by URL:
+- `hostedImages` lists each hosted exhibit's disk file, size, origin, and hash, and skips copy.sh exhibits;
+- `hostedImages` throws a message naming the exhibit when a hosted exhibit has no disk `size`;
+- `syncImages` downloads a missing image;
+- keeps a file whose hash already matches, without requesting it;
+- replaces a file whose hash doesn't match;
+- rejects a download with the wrong hash, with a message naming both hashes, and leaves no file behind;
+- rejects a download of the wrong size;
+- rejects an HTTP error, naming the status;
+- deletes files in the directory that no exhibit lists;
+- refuses, before downloading, when the images total more than `maxTotalBytes`.
+
+Run: `npx vitest run scripts/images.test.ts`
+Expected: FAIL, "Failed to load url ./images.ts".
+
+- [ ] **Step 5: Write the downloader, the collection schema, and the workflow steps**
+
+`scripts/images.ts` passes Step 4. Downloads go to `<file>.part` and are renamed only after the size and SHA-256 match. Run directly, it syncs `src/content/exhibits` into `public/images/` and prints `<n> images, <MB> MB in public/images/`.
+
+`package.json` gains `"images": "node scripts/images.ts"`. `.gitignore` gains `public/images/`.
+
+`src/content.config.ts`: the collection from Interfaces, a `z.strictObject` with `diskImage: diskImageSchema.optional()`, `v86: v86BlockSchema.optional()`, `copyShProfile: z.string().regex(/^[a-z0-9-]+$/).optional()`, and a `superRefine` that adds `exhibitKindIssue`'s message as an issue.
+
+In both `.github/workflows/ci.yml` and `.github/workflows/deploy.yml`, before `- run: npm run build`:
+```yaml
+      - uses: actions/cache@v6
+        with:
+          path: public/images
+          key: exhibit-images-${{ hashFiles('src/content/exhibits/*.md') }}
+          restore-keys: exhibit-images-
+
+      - run: npm run images
 ```
 
-`scripts/screenshots/harness.ts`:
-```ts
-// Boots one exhibit for scripts/screenshots.ts. Vite serves this page; it isn't part of the site.
-import { V86 } from "v86";
-import wasmUrl from "v86/build/v86.wasm?url";
-import { isBlank } from "../../src/emulator/blank.ts";
-import { Machine, type Emulator, type MachineState } from "../../src/emulator/machine.ts";
-import { createScreen } from "../../src/emulator/screen.ts";
-import type { V86Block } from "../../src/lib/v86-block.ts";
+Run: `npx vitest run scripts`
+Expected: PASS.
 
-export interface HarnessReport {
-  blank: boolean;
-  downloadedMB: number;
-  error: string | null;
-}
+- [ ] **Step 6: Write the screenshot harness and script**
 
-declare global {
-  interface Window {
-    harness: { boot(block: V86Block): Promise<void>; report(): HarnessReport };
-  }
-}
+`scripts/screenshots/index.html` loads `harness.ts` into a black page with `<div id="screen">`. `harness.ts` creates the screen with `createScreen`, a `Machine` with the real v86, and exposes:
+- `boot(block)`: boots with `wasmUrl` from `v86/build/v86.wasm?url`, `biosUrl: "/bios/seabios.bin"`, `vgaBiosUrl: "/bios/vgabios.bin"`, `imageBase: "/images/"`;
+- `error()`: the machine's error kind, or `null`;
+- `isBlankPng(base64)`: decodes the PNG with `createImageBitmap`, draws it on an `OffscreenCanvas`, and returns `isBlank` of its pixels.
 
-let state: MachineState = { kind: "idle" };
-const screen = createScreen(document);
-document.getElementById("screen")?.append(screen.container);
+`scripts/screenshots.ts` starts Vite (`configFile: false`, root `scripts/screenshots`, `publicDir` `public`, port 5199) and Chromium, opens one harness page for blank checks, then for each selected exhibit opens a 1280×1024 page and:
+- counts megabytes from `requestfinished` events (`request.sizes()`'s `responseBodySize`) for disk-image requests: paths under `/images/` for hosted exhibits, host `i.copy.sh` for copy.sh exhibits;
+- a hosted exhibit: opens the harness and calls `boot` with its `v86` block (the screen is `#screen .v86-screen`);
+- a copy.sh exhibit: opens `copyShUrl(profile)` (the screen is `#screen_container`);
+- waits `screenshotWaitSeconds` (default 120);
+- photographs the screen's `canvas` if it is visible, otherwise its text `div`;
+- passes when the photo isn't blank and, for a hosted exhibit, `error()` is `null`;
+- with `--write`, saves the PNG to `src/content/exhibits/screenshots/<slug>.png` and sets `downloadEstimateMB` (at least 1, rounded up) and `screenshot` in the file;
+- prints `PASS|FAIL  <slug> <MB> MB  <reason>`, then `<n> of <m> exhibits passed.`, and exits 1 if any failed.
 
-const machine = new Machine({
-  create: async (options) => new V86(options as ConstructorParameters<typeof V86>[0]) as unknown as Emulator,
-  hasWebAssembly: () => typeof WebAssembly === "object",
-  now: () => Date.now(),
-  every: (ms, fn) => {
-    const id = setInterval(fn, ms);
-    return () => clearInterval(id);
-  },
-  onState: (next) => {
-    state = next;
-  },
-  onScreenSizeChange: () => {},
-});
+- [ ] **Step 7: Write the TetrOS exhibit from its sources**
 
-window.harness = {
-  boot: (block) =>
-    machine.boot(block, { wasmUrl, biosUrl: "/bios/seabios.bin", vgaBiosUrl: "/bios/vgabios.bin" }, screen.container),
-  report: () => {
-    const { canvas } = screen;
-    const context = canvas.getContext("2d");
-    const blank =
-      canvas.width === 0 || canvas.height === 0 || !context || isBlank(context.getImageData(0, 0, canvas.width, canvas.height).data);
-    return {
-      blank,
-      downloadedMB: state.kind === "idle" ? 0 : state.downloadedMB,
-      error: state.kind === "error" ? state.error : null,
-    };
-  },
-};
-```
-
-`scripts/screenshots.ts`:
-```ts
-// Boots each exhibit headlessly for its screenshotWaitSeconds (default 120), then reports whether the
-// screen is non-blank and how many megabytes it downloaded (spec section 9).
-// Usage: npm run screenshots -- [--only=tetros,freedos] [--write]
-// --write saves each passing screenshot and sets downloadEstimateMB and screenshot in its file.
-import { chromium } from "@playwright/test";
-import { mkdir } from "node:fs/promises";
-import { fileURLToPath } from "node:url";
-import { createServer } from "vite";
-import { readExhibits, updateExhibitFile } from "./exhibits.ts";
-import type { HarnessReport } from "./screenshots/harness.ts";
-
-const root = (path: string) => fileURLToPath(new URL(`../${path}`, import.meta.url));
-const args = process.argv.slice(2);
-const only = args.find((arg) => arg.startsWith("--only="))?.slice("--only=".length).split(",");
-const write = args.includes("--write");
-const PORT = 5199;
-
-const exhibits = (await readExhibits(root("src/content/exhibits"))).filter((exhibit) => !only || only.includes(exhibit.slug));
-if (exhibits.length === 0) throw new Error("No matching exhibits");
-
-const server = await createServer({
-  configFile: false,
-  root: root("scripts/screenshots"),
-  publicDir: root("public"),
-  logLevel: "warn",
-  server: { port: PORT, strictPort: true, fs: { allow: [root(".")] } },
-});
-await server.listen();
-const browser = await chromium.launch();
-await mkdir(root("src/content/exhibits/screenshots"), { recursive: true });
-
-let failures = 0;
-for (const exhibit of exhibits) {
-  const waitSeconds = Number(exhibit.data.screenshotWaitSeconds ?? 120);
-  const page = await browser.newPage({ viewport: { width: 1280, height: 1024 } });
-  await page.goto(`http://localhost:${PORT}/`);
-  await page.waitForFunction(() => "harness" in window);
-  await page.evaluate((block) => window.harness.boot(block as never), exhibit.data.v86);
-  await page.waitForTimeout(waitSeconds * 1000);
-  const report: HarnessReport = await page.evaluate(() => window.harness.report());
-  const megabytes = Math.max(1, Math.ceil(report.downloadedMB));
-  const pass = !report.blank && report.error === null;
-  if (pass && write) {
-    await page.locator("#screen canvas").screenshot({ path: root(`src/content/exhibits/screenshots/${exhibit.slug}.png`) });
-    await updateExhibitFile(exhibit.path, { downloadEstimateMB: megabytes, screenshot: `./screenshots/${exhibit.slug}.png` });
-  }
-  if (!pass) failures++;
-  const reason = report.error ?? (report.blank ? "blank screen" : "");
-  console.log(`${pass ? "PASS" : "FAIL"}  ${exhibit.slug.padEnd(12)} ${String(megabytes).padStart(5)} MB  ${reason}`);
-  await page.close();
-}
-
-await browser.close();
-await server.close();
-console.log(`\n${exhibits.length - failures} of ${exhibits.length} exhibits passed.`);
-process.exit(failures === 0 ? 0 : 1);
-```
-
-- [ ] **Step 6: Write the TetrOS exhibit from its sources**
-
-Fetch https://github.com/daniel-e/tetros and https://github.com/daniel-e/tetros/blob/master/README.md. Take the maker, the year (the year of the repository's first commit or release, as shown on GitHub), and every fact in the story from those pages. Write nothing the sources don't say.
-
-Create `src/content/exhibits/tetros.md` (leave out `downloadEstimateMB` and `screenshot`; the screenshot script adds them):
-```markdown
----
+Fetch https://github.com/daniel-e/tetros and its README; take the maker, year, facts, and story from them only. Create `src/content/exhibits/tetros.md` without `downloadEstimateMB` and `screenshot`, with these settings:
+```yaml
 title: TetrOS
-maker: <the author named on the repository>
-year: <year of the first release or commit on GitHub>
 family: boot-sector
 license: open-source
-summary: <one sentence, at most 140 characters, from the README>
 screenshotWaitSeconds: 30
-facts:
-  Size: "512 bytes"
-  Written in: <language named in the README>
-tryThis:
-  - <a control from the README, for example which keys move and rotate pieces>
 homepage: https://github.com/daniel-e/tetros
 sources:
   - https://github.com/daniel-e/tetros
+diskImage:
+  from: https://raw.githubusercontent.com/daniel-e/tetros/f0ebf20cd7bf81c8f7bbd3500892257057b0cee4/tetros.img
+  sha256: fb9c23e1ffbe25ee35e2dd5a4f60c7e79710d0319ffa83da89fe0dd8a79f293c
+  license: MIT
+  source: https://github.com/daniel-e/tetros
 v86:
   fda:
-    url: https://i.copy.sh/tetros.img
+    url: tetros.img
     size: 512
----
-
-<Two or three short paragraphs: what it is, why it fits in a boot sector, and what that means, from the sources.>
 ```
 
-Replace every `<…>` with text from the sources before continuing; afterwards `grep -n "<" src/content/exhibits/tetros.md` must print nothing. Quote fact values that look like numbers.
-
-- [ ] **Step 7: Take the TetrOS screenshot**
+- [ ] **Step 8: Fetch the image and take the screenshot**
 
 ```bash
+npm run images
 npx playwright install chromium
 npm run screenshots -- --only=tetros --write
 ```
 
-Expected: `PASS  tetros           1 MB`, then `1 of 1 exhibits passed.`; `src/content/exhibits/screenshots/tetros.png` exists; `tetros.md` now has `downloadEstimateMB: 1` and `screenshot: ./screenshots/tetros.png`.
+Expected: `1 images, 0 MB in public/images/`; `PASS  tetros  1 MB`; `1 of 1 exhibits passed.`; `tetros.md` gains `downloadEstimateMB: 1` and `screenshot: ./screenshots/tetros.png`. Open the PNG: it shows the TetrOS playfield, not a BIOS message.
 
-Open `src/content/exhibits/screenshots/tetros.png` and check that it shows the TetrOS playfield, not a BIOS message. If it shows a BIOS message, raise `screenshotWaitSeconds` and run the step again.
-
-- [ ] **Step 8: Verify the build validates the exhibit**
+- [ ] **Step 9: Verify the build validates exhibits**
 
 Run: `npm run lint; npm run typecheck; npm test; npm run build`
-Expected: all exit 0. Then temporarily set `family: bootsector` in `tetros.md`, run `npm run build`, and confirm it fails with a message naming `family`; restore `family: boot-sector`.
+Expected: all exit 0, and `dist/images/tetros.img` exists. Then add `copyShProfile: tetros` to `tetros.md`, run `npm run build`, and confirm it fails with the kind rule's message; remove the line.
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 10: Commit**
 
-```bash
-git add package.json src/content.config.ts scripts/exhibits.ts scripts/exhibits.test.ts scripts/screenshots.ts scripts/screenshots/index.html scripts/screenshots/harness.ts src/content/exhibits/tetros.md src/content/exhibits/screenshots/tetros.png
-git commit -m "feat: add the exhibits collection, screenshot script, and the TetrOS exhibit"
-```
+Stage the files listed above by exact path, including the deletions and the docs revision (`docs/superpowers/specs/2026-09-13-retromuseum-design.md`, `docs/superpowers/plans/2026-09-13-retromuseum.md`), and commit: `feat: host small open-source disk images, add the exhibits collection, screenshot script and TetrOS`.
 
 ---
 
@@ -1855,310 +1651,42 @@ git commit -m "feat: add the exhibits collection, screenshot script, and the Tet
 - Create: `src/pages/index.astro`, `src/pages/exhibits/index.astro`, `src/pages/exhibits/[slug].astro`, `src/pages/about.astro`, `src/scripts/hall.ts`, `src/scripts/filter.ts`
 
 **Interfaces:**
-- Consumes: `Window.astro`; `byYear`, `COPYRIGHT_LABEL`, `downloadLine` (`src/lib/exhibits.ts`); `familiesPresent`, `familyLabel` (`src/lib/families.ts`); `matchesFilter` (`src/lib/filter.ts`); `stepIndex` (`src/lib/hall.ts`); collection `exhibits`.
+- Consumes: `Window.astro`; `byYear`, `COPYRIGHT_LABEL`, `downloadLine`, `copyShLine`, `copyShUrl` (`src/lib/exhibits.ts`); `familiesPresent`, `familyLabel`; `matchesFilter`; `stepIndex`; collection `exhibits`.
 - Produces (used by Tasks 6 and 8):
   - Hall ids: `featured-image`, `featured-title`, `featured-maker-year`, `featured-summary`, `visit`, `previous`, `next`, `hall-data` (JSON), strip buttons with `data-hall-index` and `aria-current`.
-  - All exhibits: buttons with `data-filter` (`all` or a family id) and `aria-pressed`; cards `li.card[data-family]`.
-  - Exhibit page: `section.exhibit-screen[data-estimate-mb][data-base]`, ids `screen-area`, `poster`, `boot`, `no-wasm`, `live`, `machine-toolbar`, `fullscreen`, `capture`, `ctrl-alt-del`, `restart`, `stop`, `progress-bar`, `downloaded`, `error-dialog`, `error-message`, `retry`, `error-stop`, `exhibit-v86` (JSON).
+  - All exhibits: buttons with `data-filter` (`all` or a family id) and `aria-pressed`; cards `li.card[data-family]`, each with "Boots on this page" or "Runs on copy.sh".
+  - Hosted exhibit page: `section.exhibit-screen[data-estimate-mb][data-base]`, ids `screen-area`, `poster`, `boot`, `no-wasm`, `live`, `machine-toolbar`, `fullscreen`, `capture`, `ctrl-alt-del`, `restart`, `stop`, `progress-bar`, `downloaded`, `error-dialog`, `error-message`, `retry`, `error-stop`, `exhibit-v86` (JSON), and `p.disk-image`.
+  - copy.sh exhibit page: `section.exhibit-screen.copy-sh` with the poster and `a#run-on-copy-sh`; no emulator ids and no `exhibit-v86`.
 
 - [ ] **Step 1: Write the hall page and its script**
 
-`src/pages/index.astro`:
-```astro
----
-import { Image, getImage } from "astro:assets";
-import { getCollection } from "astro:content";
-import Window from "../layouts/Window.astro";
-import { byYear } from "../lib/exhibits.ts";
-
-const base = import.meta.env.BASE_URL;
-const exhibits = (await getCollection("exhibits")).sort((a, b) => byYear(a.data, b.data));
-const hall = await Promise.all(
-  exhibits.map(async (exhibit) => ({
-    title: exhibit.data.title,
-    makerYear: `${exhibit.data.maker}, ${exhibit.data.year}`,
-    summary: exhibit.data.summary,
-    href: `${base}exhibits/${exhibit.id}/`,
-    image: (await getImage({ src: exhibit.data.screenshot, width: 960 })).src,
-    alt: `${exhibit.data.title} running in RetroMuseum`,
-  })),
-);
-const first = hall[0];
----
-<Window title="Exhibit hall" description="A museum of operating systems you can boot in your browser." current="hall" image={first?.image}>
-  {first && (
-    <>
-      <section class="hall" aria-label="Featured exhibit">
-        <div class="sunken">
-          <img id="featured-image" src={first.image} alt={first.alt} width="960" />
-        </div>
-        <div class="placard" aria-live="polite">
-          <h2 id="featured-title">{first.title}</h2>
-          <p class="maker-year" id="featured-maker-year">{first.makerYear}</p>
-          <p id="featured-summary">{first.summary}</p>
-          <a class="bevel-button" id="visit" href={first.href}>Visit exhibit</a>
-          <div class="hall-controls">
-            <button class="bevel-button" id="previous" type="button">Previous</button>
-            <button class="bevel-button" id="next" type="button">Next</button>
-          </div>
-        </div>
-      </section>
-      <nav class="strip" aria-label="Every exhibit, oldest first">
-        {exhibits.map((exhibit, index) => (
-          <button type="button" data-hall-index={index} aria-current={index === 0 ? "true" : "false"}>
-            <Image src={exhibit.data.screenshot} alt="" width={240} />
-            {exhibit.data.title} ({exhibit.data.year})
-          </button>
-        ))}
-      </nav>
-      <script type="application/json" id="hall-data" set:html={JSON.stringify(hall)}></script>
-    </>
-  )}
-</Window>
-<script>
-  import "../scripts/hall.ts";
-</script>
-```
-
-`src/scripts/hall.ts`:
-```ts
-import { stepIndex } from "../lib/hall.ts";
-
-interface HallItem {
-  title: string;
-  makerYear: string;
-  summary: string;
-  href: string;
-  image: string;
-  alt: string;
-}
-
-const data = document.getElementById("hall-data");
-if (data) {
-  const items = JSON.parse(data.textContent ?? "[]") as HallItem[];
-  const image = document.getElementById("featured-image") as HTMLImageElement;
-  const title = document.getElementById("featured-title") as HTMLElement;
-  const makerYear = document.getElementById("featured-maker-year") as HTMLElement;
-  const summary = document.getElementById("featured-summary") as HTMLElement;
-  const visit = document.getElementById("visit") as HTMLAnchorElement;
-  const strip = [...document.querySelectorAll<HTMLButtonElement>("[data-hall-index]")];
-  let index = 0;
-
-  const show = (next: number) => {
-    index = stepIndex(next, 0, items.length);
-    const item = items[index];
-    image.src = item.image;
-    image.alt = item.alt;
-    title.textContent = item.title;
-    makerYear.textContent = item.makerYear;
-    summary.textContent = item.summary;
-    visit.href = item.href;
-    for (const button of strip) button.setAttribute("aria-current", String(Number(button.dataset.hallIndex) === index));
-    strip[index]?.scrollIntoView({ block: "nearest", inline: "nearest" });
-  };
-
-  document.getElementById("previous")?.addEventListener("click", () => show(index - 1));
-  document.getElementById("next")?.addEventListener("click", () => show(index + 1));
-  for (const button of strip) button.addEventListener("click", () => show(Number(button.dataset.hallIndex)));
-}
-```
+`index.astro` sorts exhibits with `byYear`, builds the hall items (title, "maker, year", summary, page link, 960-pixel screenshot from `getImage`, alt text) into `#hall-data`, shows the first item in the featured frame and placard with **Visit exhibit**, **Previous**, **Next**, and a strip of 240-pixel thumbnails. `src/scripts/hall.ts` steps with `stepIndex`, updates the frame, placard, link, and `aria-current`, and scrolls the current thumbnail into view.
 
 - [ ] **Step 2: Write the All exhibits page and its script**
 
-`src/pages/exhibits/index.astro`:
-```astro
----
-import { Image } from "astro:assets";
-import { getCollection } from "astro:content";
-import Window from "../../layouts/Window.astro";
-import { byYear } from "../../lib/exhibits.ts";
-import { familiesPresent, familyLabel } from "../../lib/families.ts";
-
-const base = import.meta.env.BASE_URL;
-const exhibits = (await getCollection("exhibits")).sort((a, b) => byYear(a.data, b.data));
-const families = familiesPresent(exhibits.map((exhibit) => exhibit.data.family));
----
-<Window title="All exhibits" description="Every operating system in RetroMuseum, by family." current="exhibits">
-  <div class="filter" role="group" aria-label="Filter by family">
-    <button class="bevel-button" type="button" data-filter="all" aria-pressed="true">All</button>
-    {families.map((family) => (
-      <button class="bevel-button" type="button" data-filter={family} aria-pressed="false">{familyLabel(family)}</button>
-    ))}
-  </div>
-  <ul class="grid">
-    {exhibits.map((exhibit) => (
-      <li class="card" data-family={exhibit.data.family}>
-        <a href={`${base}exhibits/${exhibit.id}/`}>
-          <Image src={exhibit.data.screenshot} alt="" width={480} />
-          <h2>{exhibit.data.title}</h2>
-          <p>{exhibit.data.maker}, {exhibit.data.year}</p>
-          <p>{familyLabel(exhibit.data.family)}</p>
-        </a>
-      </li>
-    ))}
-  </ul>
-</Window>
-<script>
-  import "../../scripts/filter.ts";
-</script>
-```
-
-`src/scripts/filter.ts`:
-```ts
-import { matchesFilter } from "../lib/filter.ts";
-
-const buttons = [...document.querySelectorAll<HTMLButtonElement>("[data-filter]")];
-const cards = [...document.querySelectorAll<HTMLElement>("[data-family]")];
-
-for (const button of buttons) {
-  button.addEventListener("click", () => {
-    const filter = button.dataset.filter ?? "all";
-    for (const other of buttons) other.setAttribute("aria-pressed", String(other === button));
-    for (const card of cards) card.hidden = !matchesFilter(card.dataset.family ?? "", filter);
-  });
-}
-```
+`exhibits/index.astro` shows **All** and one button per family present (`familiesPresent`), and a grid of cards (480-pixel screenshot, title, "maker, year", family label, and "Boots on this page" when `v86` is set, otherwise "Runs on copy.sh"). `src/scripts/filter.ts` sets `aria-pressed` and hides cards with `matchesFilter`.
 
 - [ ] **Step 3: Write the exhibit page**
 
-`src/pages/exhibits/[slug].astro`:
-```astro
----
-import { Image, getImage } from "astro:assets";
-import { getCollection, render, type CollectionEntry } from "astro:content";
-import Window from "../../layouts/Window.astro";
-import { COPYRIGHT_LABEL, downloadLine } from "../../lib/exhibits.ts";
-import { familyLabel } from "../../lib/families.ts";
-
-export async function getStaticPaths() {
-  const exhibits = await getCollection("exhibits");
-  return exhibits.map((exhibit) => ({ params: { slug: exhibit.id }, props: { exhibit } }));
-}
-
-interface Props {
-  exhibit: CollectionEntry<"exhibits">;
-}
-
-const { exhibit } = Astro.props;
-const { data } = exhibit;
-const { Content } = await render(exhibit);
-const preview = await getImage({ src: data.screenshot, width: 1200, format: "png" });
-const base = import.meta.env.BASE_URL;
----
-<Window title={data.title} description={data.summary} current="exhibits" image={preview.src}>
-  <section class="exhibit-screen" data-estimate-mb={data.downloadEstimateMB} data-base={base}>
-    <div class="screen-area sunken" id="screen-area">
-      <div class="poster" id="poster">
-        <Image src={data.screenshot} alt={`${data.title} screenshot`} width={1024} loading="eager" />
-        <div class="poster-overlay">
-          <button class="bevel-button boot-button" id="boot" type="button">Boot it</button>
-          <p class="download-line">{downloadLine(data.downloadEstimateMB)}</p>
-          <p class="touch-note">Best with a keyboard and mouse</p>
-          <p id="no-wasm" hidden>This exhibit can't run in this browser: it needs WebAssembly, which this browser doesn't support.</p>
-        </div>
-      </div>
-      <div class="live" id="live" hidden></div>
-    </div>
-    <div class="machine-toolbar" id="machine-toolbar" hidden>
-      <button class="bevel-button" id="fullscreen" type="button">Full screen</button>
-      <button class="bevel-button" id="capture" type="button">Capture mouse</button>
-      <button class="bevel-button" id="ctrl-alt-del" type="button">Ctrl+Alt+Del</button>
-      <button class="bevel-button" id="restart" type="button">Restart</button>
-      <button class="bevel-button" id="stop" type="button">Stop</button>
-      <div class="progress" aria-hidden="true"><div id="progress-bar"></div></div>
-      <span id="downloaded" aria-live="polite"></span>
-      <span class="hint">Press Esc to release the mouse.</span>
-    </div>
-    <dialog id="error-dialog" aria-labelledby="error-title">
-      <div class="title-bar" id="error-title">Disk image server</div>
-      <p class="dialog-body" id="error-message">Couldn't reach the disk image server (i.copy.sh). It may be busy; try again in a minute.</p>
-      <div class="dialog-actions">
-        <button class="bevel-button" id="retry" type="button">Retry</button>
-        <button class="bevel-button" id="error-stop" type="button">Stop</button>
-      </div>
-    </dialog>
-    <script type="application/json" id="exhibit-v86" set:html={JSON.stringify(data.v86)}></script>
-  </section>
-  {data.license === "proprietary" && <p class="copyright">{COPYRIGHT_LABEL}</p>}
-  <div class="exhibit-body">
-    <article class="story">
-      <p class="maker-year">{data.maker}, {data.year}. {familyLabel(data.family)}.</p>
-      <Content />
-    </article>
-    <aside>
-      <h2>Facts</h2>
-      <dl class="facts">
-        {Object.entries(data.facts).map(([name, value]) => (
-          <>
-            <dt>{name}</dt>
-            <dd>{value}</dd>
-          </>
-        ))}
-      </dl>
-      <h2>Things to try</h2>
-      <ul>
-        {data.tryThis.map((item) => <li>{item}</li>)}
-      </ul>
-      <h2>Sources</h2>
-      <ol>
-        {data.sources.map((source) => <li><a href={source}>{new URL(source).hostname}</a></li>)}
-      </ol>
-      {data.homepage && <p><a href={data.homepage}>Project homepage</a></p>}
-    </aside>
-  </div>
-</Window>
-```
+`exhibits/[slug].astro` renders one page per exhibit, with the window title, the summary as description, and a 1200-pixel PNG preview (`getImage`) as `og:image`. Then:
+- **Hosted** (`data.v86`): the screen section from Interfaces, with the poster (1024-pixel screenshot, **Boot it**, `downloadLine`, touch note, hidden no-WebAssembly message), the hidden live area and toolbar (**Full screen**, **Capture mouse**, **Ctrl+Alt+Del**, **Restart**, **Stop**, progress bar, downloaded count, mouse hint), the error dialog titled "Disk image" with "Couldn't load the disk image. Check your connection and try again.", **Retry** and **Stop**, and `data.v86` as JSON.
+- **copy.sh** (`data.copyShProfile`): the poster with a bevelled link **Run it on copy.sh** to `copyShUrl(profile)`, `copyShLine`, and the touch note.
+- Below: `COPYRIGHT_LABEL` for proprietary exhibits; the story with "maker, year. family."; facts; things to try; sources (hostnames linked); the homepage link; and, for hosted exhibits, `<p class="disk-image">Disk image: <license>. <a>Source code</a></p>` (the link only when `source` is set).
 
 - [ ] **Step 4: Write the About page**
 
-`src/pages/about.astro`:
-```astro
----
-import Window from "../layouts/Window.astro";
-
-const repo = import.meta.env.BASE_URL.replaceAll("/", "");
-const repoUrl = `https://github.com/hammadshakeelai/${repo}`;
----
-<Window
-  title="About"
-  description="What RetroMuseum is, the software it runs on, and how to ask for an exhibit to be removed."
-  current="about"
->
-  <article class="story">
-    <h2>What this is</h2>
-    <p>RetroMuseum is a museum of operating systems you can boot in your browser. Each exhibit is a real operating system running in an emulated PC, with its story, its facts, and things to try.</p>
-    <p>Nothing is installed on your computer. When you press <strong>Boot it</strong>, the emulator starts in the page and downloads the exhibit's disk image as the system reads it.</p>
-
-    <h2>Credits</h2>
-    <p>Every exhibit runs in <a href="https://github.com/copy/v86">v86</a>, an x86 PC emulator by the v86 contributors. The disk images and snapshots load from <a href="https://copy.sh/v86/">copy.sh</a>, the v86 project's server, as they do on v86's own site.</p>
-
-    <h2>Licenses</h2>
-    <ul>
-      <li>RetroMuseum's own code: MIT.</li>
-      <li>v86: BSD-2-Clause.</li>
-      <li>SeaBIOS and SeaVGABIOS: GNU LGPL v3.</li>
-      <li>Each operating system keeps its own license. Some exhibits are copyrighted software, shown for their history. Their disk images aren't hosted on this site and can't be downloaded from it.</li>
-    </ul>
-
-    <h2>Asking for an exhibit to be removed</h2>
-    <p>If you hold rights to software shown here and want its exhibit removed, <a href={`${repoUrl}/issues/new?template=removal-request.yml`}>open a removal request</a>. A valid request is handled by deleting that exhibit.</p>
-    <p>The source code is on <a href={repoUrl}>GitHub</a>.</p>
-  </article>
-</Window>
-```
+Sections, in the site's voice:
+- **What this is.** RetroMuseum is a museum of operating systems you can boot in your browser, with each system's story, facts, and things to try. Nothing is installed on your computer.
+- **Credits.** Every exhibit runs in v86 (linked), an x86 PC emulator by the v86 contributors. Small open-source exhibits boot on this site from disk images it hosts; their pages name each image's license and link to its source code, and `THIRD_PARTY_NOTICES.md` lists where each image came from. The other exhibits open on copy.sh (linked), the v86 project's own site, which hosts their disk images.
+- **Licenses.** RetroMuseum's own code: MIT. v86: BSD-2-Clause. SeaBIOS and SeaVGABIOS: GNU LGPL v3. Each operating system keeps its own license. Copyrighted exhibits are shown for their history; they run on copy.sh, and RetroMuseum doesn't host or offer their disk images.
+- **Asking for an exhibit to be removed.** The removal-request link (`<repo>/issues/new?template=removal-request.yml`), "A valid request is handled by deleting that exhibit.", and the GitHub link.
 
 - [ ] **Step 5: Build and look at every page**
 
-Run: `npm run lint; npm run typecheck; npm test; npm run build`
+Run: `npm run lint; npm run typecheck; npm test; npm run images; npm run build`
 Expected: all exit 0; `dist/index.html`, `dist/exhibits/index.html`, `dist/exhibits/tetros/index.html`, `dist/about/index.html`, `dist/404.html` exist.
 
-Add a `retromuseum-preview` entry to `C:\Users\HP\Documents\GitHub\WebOS\.claude\launch.json` (untracked; `runtimeExecutable` `npm`, `runtimeArgs` `["run", "preview"]`, `port` 4321), start it with the Browser pane's `preview_start`, and open `http://localhost:4321/RetroMuseum/`. Check at 1280 px and at the `mobile` preset:
-- the hall shows TetrOS with its placard, and **Next**/**Previous** keep working with one exhibit;
-- `exhibits/` shows the TetrOS card and the **Boot-sector** filter hides nothing;
-- `exhibits/tetros/` shows the poster, **Boot it**, the download line, facts, things to try, and sources, and no copyright label;
-- `about/` and a missing page (`exhibits/nope/`) render.
-
-Stop the preview server afterwards.
+Preview (`retromuseum-preview` in `.claude/launch.json`: `npm run preview`, port 4321) at `http://localhost:4321/RetroMuseum/`, at 1280 px and the `mobile` preset: the hall shows TetrOS and **Next**/**Previous** work with one exhibit; `exhibits/` shows the TetrOS card with "Boots on this page"; `exhibits/tetros/` shows the poster, **Boot it**, the download line, facts, things to try, sources, "Disk image: MIT. Source code", and no copyright label; `about/` and `exhibits/nope/` render. Stop the preview.
 
 - [ ] **Step 6: Commit**
 
@@ -2176,153 +1704,56 @@ git commit -m "feat: add the exhibit hall, All exhibits, exhibit and About pages
 - Modify: `src/pages/exhibits/[slug].astro` (load the script)
 
 **Interfaces:**
-- Consumes: `Machine`, `type Emulator`, `type MachineState` (`src/emulator/machine.ts`); `createScreen`, `naturalSize` (`src/emulator/screen.ts`); `type V86Block`; the exhibit page ids from Task 5.
+- Consumes: `Machine`, `type Emulator`, `type MachineState`; `createScreen`, `naturalSize`, `type ScreenElements`; `type V86Block`; the hosted exhibit page ids from Task 5.
 
 - [ ] **Step 1: Write the page script**
 
-`src/scripts/exhibit-page.ts`:
-```ts
-import wasmUrl from "v86/build/v86.wasm?url";
-import { Machine, type Emulator, type MachineState } from "../emulator/machine.ts";
-import { createScreen, naturalSize, type ScreenElements } from "../emulator/screen.ts";
-import type { V86Block } from "../lib/v86-block.ts";
+`src/scripts/exhibit-page.ts` does nothing unless `#exhibit-v86` exists. It reads the block, `data-estimate-mb`, and `data-base`, and creates a `Machine` whose `create` imports `v86` dynamically. `render(state)`:
+- no WebAssembly: hides **Boot it** and shows the message;
+- idle: shows the poster, removes the screen, closes the dialog;
+- running: shows the live screen and toolbar, "<n> MB downloaded", and the progress bar against the estimate;
+- error: also opens the dialog, with its **Stop** only for stalls.
 
-function element<T extends HTMLElement>(id: string): T {
-  const found = document.getElementById(id);
-  if (!found) throw new Error(`Missing #${id}`);
-  return found as T;
-}
-
-const section = document.querySelector<HTMLElement>(".exhibit-screen");
-if (section) {
-  const block = JSON.parse(element("exhibit-v86").textContent ?? "{}") as V86Block;
-  const estimateMB = Number(section.dataset.estimateMb);
-  const base = section.dataset.base ?? "/";
-  const area = element("screen-area");
-  const poster = element("poster");
-  const live = element("live");
-  const toolbar = element("machine-toolbar");
-  const progressBar = element("progress-bar");
-  const downloaded = element("downloaded");
-  const dialog = element<HTMLDialogElement>("error-dialog");
-  const errorStop = element<HTMLButtonElement>("error-stop");
-  const bootButton = element<HTMLButtonElement>("boot");
-  const noWasm = element("no-wasm");
-  let screen: ScreenElements = createScreen(document);
-
-  const fit = () => {
-    const fullscreen = document.fullscreenElement === screen.container;
-    const rect = area.getBoundingClientRect();
-    const size = fullscreen ? { width: innerWidth, height: innerHeight } : { width: rect.width, height: rect.height };
-    machine.fit(size, naturalSize(screen.canvas));
-  };
-
-  const render = (state: MachineState) => {
-    if (state.kind === "error" && state.error === "no-wasm") {
-      bootButton.hidden = true;
-      noWasm.hidden = false;
-      return;
-    }
-    const active = state.kind !== "idle";
-    poster.hidden = active;
-    live.hidden = !active;
-    toolbar.hidden = !active;
-    if (state.kind === "idle") {
-      screen.container.remove();
-      if (dialog.open) dialog.close();
-      return;
-    }
-    downloaded.textContent = `${Math.round(state.downloadedMB)} MB downloaded`;
-    progressBar.style.width = `${Math.min(100, (state.downloadedMB / estimateMB) * 100)}%`;
-    if (state.kind === "error") {
-      errorStop.hidden = state.error !== "stalled";
-      if (!dialog.open) dialog.showModal();
-    }
-  };
-
-  const machine = new Machine({
-    create: async (options) => {
-      const { V86 } = await import("v86");
-      return new V86(options as ConstructorParameters<typeof V86>[0]) as unknown as Emulator;
-    },
-    hasWebAssembly: () => typeof WebAssembly === "object",
-    now: () => Date.now(),
-    every: (ms, fn) => {
-      const id = setInterval(fn, ms);
-      return () => clearInterval(id);
-    },
-    onState: render,
-    onScreenSizeChange: () => requestAnimationFrame(fit),
-  });
-
-  const boot = async () => {
-    if (dialog.open) dialog.close();
-    screen.container.remove();
-    screen = createScreen(document);
-    live.append(screen.container);
-    await machine.boot(block, { wasmUrl, biosUrl: `${base}bios/seabios.bin`, vgaBiosUrl: `${base}bios/vgabios.bin` }, screen.container);
-  };
-
-  bootButton.addEventListener("click", () => void boot());
-  element("retry").addEventListener("click", () => void boot());
-  element("restart").addEventListener("click", () => void boot());
-  element("stop").addEventListener("click", () => void machine.stop());
-  errorStop.addEventListener("click", () => void machine.stop());
-  element("fullscreen").addEventListener("click", () => machine.fullscreen());
-  element("capture").addEventListener("click", () => machine.captureMouse());
-  element("ctrl-alt-del").addEventListener("click", () => machine.ctrlAltDel());
-  live.addEventListener("click", () => machine.captureMouse());
-  new ResizeObserver(() => fit()).observe(area);
-  document.addEventListener("fullscreenchange", () => requestAnimationFrame(fit));
-  addEventListener("pagehide", () => void machine.stop());
-}
-```
+**Boot it**, **Retry**, and **Restart** replace the screen container and boot with `wasmUrl`, `biosUrl: <base>bios/seabios.bin`, `vgaBiosUrl: <base>bios/vgabios.bin`, `imageBase: <base>images/`. **Stop** (both) stops. The toolbar buttons call `fullscreen`, `captureMouse`, `ctrlAltDel`; clicking the live screen captures the mouse. A `ResizeObserver` on the screen area, `fullscreenchange`, and `screen-set-size` refit (fullscreen fits the window); `pagehide` stops.
 
 - [ ] **Step 2: Load it on the exhibit page**
 
-At the end of `src/pages/exhibits/[slug].astro`, after `</Window>`, add:
-```astro
-<script>
-  import "../../scripts/exhibit-page.ts";
-</script>
-```
+After `</Window>` in `[slug].astro`: `<script>import "../../scripts/exhibit-page.ts";</script>`.
 
 - [ ] **Step 3: Verify in the browser**
 
 Run: `npm run lint; npm run typecheck; npm test; npm run build`
-Expected: all exit 0. `ls dist/_astro` shows a separate chunk containing v86 (the largest `.js` file) and a `v86.*.wasm` file.
+Expected: all exit 0; `dist/_astro` has a separate v86 chunk and a `v86.*.wasm`.
 
-Start the `retromuseum-preview` server and open `http://localhost:4321/RetroMuseum/exhibits/tetros/` in the Browser pane:
-1. The network panel (`read_network_requests`) shows no `v86` chunk or `.wasm` request before pressing anything.
-2. Press **Boot it**: the poster is replaced by the live screen scaled to fill the area without cropping, the toolbar appears, and "1 MB downloaded" shows.
-3. Resize the viewport to `mobile`: the screen shrinks and stays whole.
-4. **Ctrl+Alt+Del** restarts TetrOS; **Restart** boots it again; **Stop** brings back the poster and **Boot it**.
-5. `read_console_messages` with `onlyErrors: true` shows no errors.
-
-Stop the preview server.
+In the preview at `exhibits/tetros/`:
+1. No v86 chunk or `.wasm` request before pressing anything.
+2. **Boot it**: the live screen fills the area without cropping, the toolbar appears, and the network shows `/RetroMuseum/images/tetros.img` and no request to `i.copy.sh`.
+3. At the `mobile` preset the screen shrinks and stays whole.
+4. **Ctrl+Alt+Del** restarts TetrOS; **Restart** boots again; **Stop** brings back the poster.
+5. No console errors.
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add src/scripts/exhibit-page.ts src/pages/exhibits/[slug].astro
-git commit -m "feat: boot exhibits on their page with progress, errors and the machine toolbar"
+git add src/scripts/exhibit-page.ts "src/pages/exhibits/[slug].astro"
+git commit -m "feat: boot hosted exhibits on their page with progress, errors and the machine toolbar"
 ```
 
 ---
 
-### Task 7: The first nine exhibits
+### Task 7: The first exhibits
 
 **Files:**
-- Create: `src/content/exhibits/{sectorlisp,floppybird,bootchess,freedos,kolibrios,helenos,windows1,elks}.md` and their screenshots
+- Create: `src/content/exhibits/{sectorlisp,floppybird,bootchess,freedos,kolibrios,helenos,elks,windows1}.md` and their screenshots
 
 **Interfaces:**
-- Consumes: the collection schema (Task 4), `npm run screenshots` (Task 4).
+- Consumes: the collection schema, `npm run images`, `npm run screenshots` (Task 4).
 
-Every exhibit file follows the TetrOS pattern from Task 4 Step 6. For each exhibit:
-1. Fetch its sources (the URLs below, and any page they cite for a fact you use).
-2. Write `maker`, `year` (the release year of the version in the disk image), `summary` (one sentence, at most 140 characters), `facts` (two to four entries with display-style labels such as `Released`, `Boot media`, `Memory here`; quote values that look like numbers), `tryThis` (two to four things you confirm on the running exhibit), and a story of two to four short paragraphs. Every claim comes from a listed source. No marketing language.
-3. Copy the v86 block and the other settings exactly as given.
-4. Leave out `downloadEstimateMB` and `screenshot`; the screenshot script adds them.
+Every exhibit follows TetrOS. For each:
+1. Fetch its sources (below, and any page they cite for a fact you use).
+2. Write `maker`, `year` (the release year of the version shown), `summary` (one sentence, at most 140 characters), `facts` (two to four display-style labels; quote values that look like numbers), `tryThis` (two to four things confirmed on the running exhibit), and a story of two to four short paragraphs. Every claim comes from a listed source. No marketing language.
+3. Copy the settings below exactly.
+4. Leave out `downloadEstimateMB` and `screenshot`.
 
 - [ ] **Step 1: Write the eight files with these exact settings**
 
@@ -2336,9 +1767,14 @@ homepage: https://justine.lol/sectorlisp2/
 sources:
   - https://justine.lol/sectorlisp2/
   - https://github.com/jart/sectorlisp
+diskImage:
+  from: https://i.copy.sh/sectorlisp-friendly.bin
+  sha256: 2b71dffae9900f3aa280ad6eb3bb2752dffb589a8d9a5463515683d03e7021d8
+  license: ISC
+  source: https://github.com/jart/sectorlisp/tree/friendly
 v86:
   fda:
-    url: https://i.copy.sh/sectorlisp-friendly.bin
+    url: sectorlisp-friendly.bin
     size: 512
 ```
 
@@ -2352,9 +1788,14 @@ homepage: http://mihail.co/floppybird
 sources:
   - http://mihail.co/floppybird
   - https://github.com/icebreaker/floppybird
+diskImage:
+  from: https://raw.githubusercontent.com/icebreaker/floppybird/5c8f3d1fd6e5d8243240d49428bfad36ba95b909/build/iso/floppybird.img
+  sha256: 5db1b469e25e9eda7b8c0f666d6b655bab083c85618a9453ee72f1201cca840f
+  license: MIT
+  source: https://github.com/icebreaker/floppybird
 v86:
   fda:
-    url: https://i.copy.sh/floppybird.img
+    url: floppybird.img
     size: 1474560
 ```
 
@@ -2367,9 +1808,14 @@ screenshotWaitSeconds: 30
 homepage: https://www.pouet.net/prod.php?which=64962
 sources:
   - https://www.pouet.net/prod.php?which=64962
+diskImage:
+  from: https://i.copy.sh/bootchess.img
+  sha256: 04cd453801433b51e8684814977b30dfc0367315706ce792438601eaf1da88a1
+  license: WTFPL
+  source: https://www.pouet.net/prod.php?which=64962
 v86:
   fda:
-    url: https://i.copy.sh/bootchess.img
+    url: bootchess.img
     size: 1474560
 ```
 
@@ -2383,9 +1829,14 @@ homepage: https://www.freedos.org/
 sources:
   - https://en.wikipedia.org/wiki/FreeDOS
   - https://www.freedos.org/
+diskImage:
+  from: https://i.copy.sh/freedos722.img
+  sha256: 8ecc7604d4c17c16e136d219a92e64747196d9ae044690e90be9ca0468b1ff12
+  license: GPL-2.0 and the licenses of its programs
+  source: https://www.ibiblio.org/pub/micro/pc-stuff/freedos/files/
 v86:
   fda:
-    url: https://i.copy.sh/freedos722.img
+    url: freedos722.img
     size: 737280
 ```
 
@@ -2399,9 +1850,14 @@ homepage: https://kolibrios.org/en/
 sources:
   - https://en.wikipedia.org/wiki/KolibriOS
   - https://kolibrios.org/en/
+diskImage:
+  from: https://i.copy.sh/kolibri.img
+  sha256: f3ec74d5b70e5b7a8b0d053a1ada738a75159366b50af8a427845f87e0a91be5
+  license: GPL-2.0
+  source: https://git.kolibrios.org/KolibriOS/kolibrios
 v86:
   fda:
-    url: https://i.copy.sh/kolibri.img
+    url: kolibri.img
     size: 1474560
 ```
 
@@ -2415,26 +1871,17 @@ homepage: http://www.helenos.org/
 sources:
   - https://en.wikipedia.org/wiki/HelenOS
   - http://www.helenos.org/
+diskImage:
+  from: https://www.helenos.org/releases/HelenOS-0.14.1-ia32.iso
+  sha256: 1b15da0459cbfe28a6d3058675c2c20a4b03584cfb4d034c0ccb17b521791ccb
+  license: BSD, with some GPL components
+  source: https://www.helenos.org/releases/HelenOS-0.14.1-src.tar.bz2
 v86:
   memory_size: 268435456
   cdrom:
-    url: https://i.copy.sh/HelenOS-0.14.1-ia32.iso
+    url: HelenOS-0.14.1-ia32.iso
     size: 25792512
     async: false
-```
-
-`windows1.md`:
-```yaml
-title: Windows 1.01
-family: windows
-license: proprietary
-screenshotWaitSeconds: 60
-sources:
-  - https://en.wikipedia.org/wiki/Windows_1.0
-v86:
-  fda:
-    url: https://i.copy.sh/windows101.img
-    size: 1474560
 ```
 
 `elks.md`:
@@ -2447,36 +1894,50 @@ homepage: https://github.com/ghaerr/elks
 sources:
   - https://en.wikipedia.org/wiki/Embeddable_Linux_Kernel_Subset
   - https://github.com/ghaerr/elks
+diskImage:
+  from: https://github.com/ghaerr/elks/releases/download/v0.9.2/hd32-fat.img
+  sha256: d588b4e1ef7eb023270bcb5e1e9b0362cba968fb42098456a7bd2c4fb9f5817d
+  license: GPL-2.0
+  source: https://github.com/ghaerr/elks/tree/v0.9.2
 v86:
   hda:
-    url: https://i.copy.sh/elks-hd32-fat.img
+    url: elks-0.9.2-hd32-fat.img
     size: 32514048
     async: false
 ```
 
+`windows1.md`:
+```yaml
+title: Windows 1.01
+family: windows
+license: proprietary
+screenshotWaitSeconds: 60
+sources:
+  - https://en.wikipedia.org/wiki/Windows_1.0
+copyShProfile: windows1
+```
+
 If a source URL doesn't load, find the page it refers to and use that address instead.
 
-- [ ] **Step 2: Take the screenshots**
+- [ ] **Step 2: Fetch the images and take the screenshots**
 
-Run (in the background; about 8 minutes): `npm run screenshots -- --only=sectorlisp,floppybird,bootchess,freedos,kolibrios,helenos,windows1,elks --write`
+Run `npm run images` (expected: `8 images`), then in the background: `npm run screenshots -- --only=sectorlisp,floppybird,bootchess,freedos,kolibrios,helenos,elks,windows1 --write`.
 Expected: one `PASS` or `FAIL` line per exhibit and a final count.
 
-For each PASS, open its PNG and check it shows the exhibit's own screen (a prompt, desktop, or game), not a BIOS or boot-loader message. If it shows an earlier stage, raise that exhibit's `screenshotWaitSeconds` and run it again with `--only=<slug> --write`.
-
-For a FAIL, run it once more with a longer wait. If it still fails, delete its Markdown file; spec section 5 leaves failing exhibits out. Write down each left-out exhibit and the reason for the pull request description.
+For each PASS, open its PNG: it must show the exhibit's own screen (a prompt, desktop, or game), not a BIOS or boot-loader message; otherwise raise `screenshotWaitSeconds` and rerun that exhibit. For a FAIL, rerun once with a longer wait; if it still fails, delete its Markdown file and note the exhibit and reason for the pull request.
 
 - [ ] **Step 3: Confirm the things to try**
 
-Start the preview server, boot each included exhibit, and try every `tryThis` entry. Replace any entry that doesn't work as written.
+In the preview, boot each hosted exhibit and try every `tryThis` entry; for Windows 1.01, try them on its copy.sh page. Replace any entry that doesn't work as written.
 
 - [ ] **Step 4: Verify and commit**
 
 Run: `npm run lint; npm run typecheck; npm test; npm run build`
-Expected: all exit 0. `grep -rn "<" src/content/exhibits/*.md` prints no angle-bracket prompts.
+Expected: all exit 0; `grep -rn "<" src/content/exhibits/*.md` prints no angle-bracket prompts.
 
 ```bash
 git add src/content/exhibits
-git commit -m "feat: add the first exhibits: boot-sector programs, FreeDOS, KolibriOS, HelenOS, Windows 1.01 and ELKS"
+git commit -m "feat: add the first exhibits: boot-sector programs, FreeDOS, KolibriOS, HelenOS, ELKS and Windows 1.01"
 ```
 
 ---
@@ -2485,106 +1946,24 @@ git commit -m "feat: add the first exhibits: boot-sector programs, FreeDOS, Koli
 
 **Files:**
 - Create: `playwright.config.ts`, `e2e/site.spec.ts`
-- Modify: `package.json` (`lint` covers `e2e`), `.github/workflows/ci.yml` (run the end-to-end tests)
+- Modify: `package.json` (`lint` covers `e2e`), `.github/workflows/ci.yml`
 
 **Interfaces:**
-- Consumes: the page ids and texts from Tasks 5 and 6; exhibits `tetros` (boot-sector), `freedos` (dos), `windows1` (proprietary). If Task 7 left out `freedos` or `windows1`, use another included DOS or proprietary exhibit in these tests.
+- Consumes: the page ids and texts from Tasks 5 and 6; exhibits `tetros` (hosted, boot-sector), a `dos` exhibit (`freedos`), and a proprietary copy.sh exhibit (`windows1`). If Task 7 left one out, use another included exhibit of the same kind.
 
 - [ ] **Step 1: Write the Playwright config and tests**
 
-`playwright.config.ts`:
-```ts
-import { defineConfig, devices } from "@playwright/test";
-
-const base = process.env.BASE_PATH ?? "/RetroMuseum/";
-
-export default defineConfig({
-  testDir: "e2e",
-  timeout: 5 * 60_000,
-  use: { ...devices["Desktop Chrome"], baseURL: `http://localhost:4321${base}` },
-  webServer: {
-    command: "npm run preview",
-    url: `http://localhost:4321${base}`,
-    reuseExistingServer: !process.env.CI,
-    timeout: 60_000,
-  },
-});
-```
+`playwright.config.ts`: `testDir: "e2e"`, 5-minute timeout, Desktop Chrome, `baseURL` `http://localhost:4321<BASE_PATH or /RetroMuseum/>`, web server `npm run preview` on that URL (reused outside CI).
 
 `e2e/site.spec.ts`:
-```ts
-import { expect, test } from "@playwright/test";
+1. **the hall steps through the collection:** **Next** changes `#featured-title`; **Previous** restores it.
+2. **the family filter shows only matching exhibits:** after **Boot-sector**, visible cards are all `boot-sector` and a `dos` card is hidden.
+3. **an exhibit page has its own title and preview image:** `exhibits/tetros/` has title "RetroMuseum: TetrOS" and an `og:image` matching `^https://hammadshakeelai\.github\.io/.+\.png$`.
+4. **copyrighted exhibits say where they run and link there:** `exhibits/windows1/` shows the copyright label, and the **Run it on copy.sh** link's `href` is `https://copy.sh/v86/?profile=windows1`.
+5. **an unknown page shows File not found:** the text and the **Back to the exhibit hall** link are visible.
+6. **Boot it runs TetrOS from the site's own images, and Stop brings back the poster:** record requests; press **Boot it**; poll the `.v86-screen canvas` until more than 1000 pixels are lit (2-minute timeout); a request path ends with `/images/tetros.img` and no request goes to `i.copy.sh`; **Stop** brings back **Boot it**.
 
-test("the hall steps through the collection", async ({ page }) => {
-  await page.goto("./");
-  const title = page.locator("#featured-title");
-  const first = (await title.textContent()) ?? "";
-  await page.getByRole("button", { name: "Next" }).click();
-  await expect(title).not.toHaveText(first);
-  await page.getByRole("button", { name: "Previous" }).click();
-  await expect(title).toHaveText(first);
-});
-
-test("the family filter shows only matching exhibits", async ({ page }) => {
-  await page.goto("exhibits/");
-  await page.getByRole("button", { name: "Boot-sector" }).click();
-  const visible = page.locator(".card:not([hidden])");
-  await expect(visible.first()).toBeVisible();
-  const families = await visible.evaluateAll((cards) => cards.map((card) => card.getAttribute("data-family")));
-  expect(new Set(families)).toEqual(new Set(["boot-sector"]));
-  await expect(page.locator('.card[data-family="dos"]').first()).toBeHidden();
-});
-
-test("an exhibit page has its own title and preview image", async ({ page }) => {
-  await page.goto("exhibits/tetros/");
-  await expect(page).toHaveTitle("RetroMuseum: TetrOS");
-  const image = await page.locator('meta[property="og:image"]').getAttribute("content");
-  expect(image).toMatch(/^https:\/\/hammadshakeelai\.github\.io\/.+\.png$/);
-});
-
-test("copyrighted exhibits say where their disk image comes from", async ({ page }) => {
-  await page.goto("exhibits/windows1/");
-  await expect(
-    page.getByText("Copyrighted software, shown for its history. The disk image loads from copy.sh, the v86 project's server."),
-  ).toBeVisible();
-});
-
-test("an unknown page shows File not found", async ({ page }) => {
-  await page.goto("exhibits/not-an-exhibit/");
-  await expect(page.getByText("The page you asked for isn't in the collection.")).toBeVisible();
-  await expect(page.getByRole("link", { name: "Back to the exhibit hall" })).toBeVisible();
-});
-
-test("Boot it runs TetrOS, and Stop brings back the poster", async ({ page }) => {
-  await page.goto("exhibits/tetros/");
-  await page.getByRole("button", { name: "Boot it" }).click();
-  await expect(page.getByRole("button", { name: "Stop" })).toBeVisible();
-  await expect
-    .poll(
-      () =>
-        page.evaluate(() => {
-          const canvas = document.querySelector<HTMLCanvasElement>(".v86-screen canvas");
-          if (!canvas || canvas.width === 0) return 0;
-          const pixels = canvas.getContext("2d")?.getImageData(0, 0, canvas.width, canvas.height).data;
-          if (!pixels) return 0;
-          let lit = 0;
-          for (let i = 0; i < pixels.length; i += 4) if (pixels[i] || pixels[i + 1] || pixels[i + 2]) lit++;
-          return lit;
-        }),
-      { timeout: 120_000 },
-    )
-    .toBeGreaterThan(1000);
-  await page.getByRole("button", { name: "Stop" }).click();
-  await expect(page.getByRole("button", { name: "Boot it" })).toBeVisible();
-});
-```
-
-In `package.json`, change the `lint` script to:
-```json
-"lint": "oxlint --deny-warnings src scripts e2e",
-```
-
-In `.github/workflows/ci.yml`, append after `- run: npm run build`:
+`package.json` `lint` becomes `oxlint --deny-warnings src scripts e2e`. In `ci.yml`, after `- run: npm run build`:
 ```yaml
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
@@ -2592,8 +1971,8 @@ In `.github/workflows/ci.yml`, append after `- run: npm run build`:
 
 - [ ] **Step 2: Run the tests**
 
-Run: `npm run build; npm run test:e2e`
-Expected: 6 passed. If "an unknown page shows File not found" fails because `astro preview` doesn't serve `404.html`, check `dist/404.html` exists and confirm with `curl -s http://localhost:4321/RetroMuseum/nope/` during a preview; GitHub Pages serves `404.html` for missing pages, so adjust only the test's navigation, not the page.
+Run: `npm run images; npm run build; npm run test:e2e`
+Expected: 6 passed. If test 5 fails only because `astro preview` doesn't serve `404.html`, confirm `dist/404.html` exists and adjust only the test's navigation (GitHub Pages serves `404.html`).
 
 - [ ] **Step 3: Verify and commit**
 
@@ -2613,225 +1992,36 @@ git commit -m "test: add end-to-end tests for the hall, filter, exhibit pages an
 - Create: `scripts/exhibit-health.ts`, `scripts/exhibit-health.test.ts`, `.github/workflows/exhibit-health.yml`, `.github/ISSUE_TEMPLATE/removal-request.yml`
 
 **Interfaces:**
-- Consumes: `exhibitUrls` (`src/lib/parts.ts`), `type V86Block`, `readExhibits` (`scripts/exhibits.ts`).
-- Produces: `type Fetcher = (url: string, init: RequestInit) => Promise<Response>`, `probe(url: string, fetcher?: Fetcher): Promise<string | null>`, `checkExhibits(dir: string, fetcher?: Fetcher): Promise<string[]>`; `exhibit-health.md` when something is broken.
+- Consumes: `readExhibits` (`scripts/exhibits.ts`), `diskOf`, `type V86Block`, `type DiskImage`.
+- Produces: `type Fetcher = (url: string, init: RequestInit) => Promise<Response>`, `MAIN_JS_URL` (`https://raw.githubusercontent.com/copy/v86/master/src/browser/main.js`), `checkImageUrl(url: string, size: number, fetcher?: Fetcher): Promise<string | null>`, `profileIds(mainJs: string): Set<string>`, `checkExhibits(dir: string, siteUrl: string, fetcher?: Fetcher): Promise<string[]>`; `exhibit-health.md` when something is broken.
 
 - [ ] **Step 1: Write the failing tests**
 
-`scripts/exhibit-health.test.ts`:
-```ts
-import { mkdtemp, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { describe, expect, it } from "vitest";
-import { checkExhibits, probe } from "./exhibit-health.ts";
-
-const CORS = { "access-control-allow-origin": "*" };
-const reply = (status: number, headers: Record<string, string> = CORS) => new Response(null, { status, headers });
-
-describe("probe", () => {
-  it("accepts 200 and 206 with an open CORS header", async () => {
-    expect(await probe("https://i.copy.sh/a.img", async () => reply(206))).toBeNull();
-    expect(await probe("https://i.copy.sh/a.img", async () => reply(200))).toBeNull();
-  });
-
-  it("reports a failed status", async () => {
-    expect(await probe("https://i.copy.sh/a.img", async () => reply(404))).toBe("HTTP 404");
-  });
-
-  it("reports a missing CORS header", async () => {
-    expect(await probe("https://i.copy.sh/a.img", async () => reply(206, {}))).toBe("no Access-Control-Allow-Origin: * header");
-  });
-
-  it("reports a network error", async () => {
-    expect(
-      await probe("https://i.copy.sh/a.img", async () => {
-        throw new Error("fetch failed");
-      }),
-    ).toBe("fetch failed");
-  });
-
-  it("asks for a small range from the site's origin", async () => {
-    let init: RequestInit | undefined;
-    await probe("https://i.copy.sh/a.img", async (_url, options) => {
-      init = options;
-      return reply(206);
-    });
-    expect(init?.headers).toEqual({ Origin: "https://hammadshakeelai.github.io", Range: "bytes=0-1023" });
-  });
-});
-
-describe("checkExhibits", () => {
-  it("checks the first part of split images and the snapshot", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "exhibits-"));
-    await writeFile(
-      join(dir, "haiku.md"),
-      "---\ntitle: Haiku\nv86:\n  hda:\n    url: https://i.copy.sh/haiku-v5/.img\n    use_parts: true\n    fixed_chunk_size: 1048576\n  initial_state:\n    url: https://i.copy.sh/haiku_state-v5.bin.zst\n---\n",
-    );
-    const requested: string[] = [];
-    const problems = await checkExhibits(dir, async (url) => {
-      requested.push(url);
-      return url.endsWith(".zst") ? reply(404) : reply(206);
-    });
-    expect(requested).toEqual(["https://i.copy.sh/haiku-v5/0-1048576.img", "https://i.copy.sh/haiku_state-v5.bin.zst"]);
-    expect(problems).toEqual(["- **haiku**: https://i.copy.sh/haiku_state-v5.bin.zst (HTTP 404)"]);
-  });
-});
-```
-
-- [ ] **Step 2: Run them to see them fail**
+`scripts/exhibit-health.test.ts`, with a fake fetcher:
+- `checkImageUrl` asks for `Range: bytes=0-0` with no `Origin` or `Referer`, and accepts a 206 whose `Content-Range` total is the size, or a 200 whose `Content-Length` is the size;
+- it reports `HTTP 404`, a size mismatch as `<n> bytes, expected <size>`, and a network error's message;
+- `profileIds` finds every `id: "<name>"` in a profile list;
+- `checkExhibits` checks a hosted exhibit's origin and `<siteUrl>images/<file>`, and a copy.sh exhibit against `MAIN_JS_URL` (fetched once), returning lines `- **<slug>**: origin <url> (<problem>)`, `- **<slug>**: site <url> (<problem>)`, and `- **<slug>**: v86 has no profile "<id>"`, and `- v86's profile list didn't load (<problem>)` when `main.js` fails.
 
 Run: `npx vitest run scripts/exhibit-health.test.ts`
 Expected: FAIL, "Failed to load url ./exhibit-health.ts".
 
-- [ ] **Step 3: Write the script, workflow, and issue template**
+- [ ] **Step 2: Write the script, workflow, and issue template**
 
-`scripts/exhibit-health.ts`:
-```ts
-// Weekly check (.github/workflows/exhibit-health.yml): requests the first bytes of every URL each
-// exhibit needs to start, as a browser on the site would. Writes exhibit-health.md and exits 1 if
-// any exhibit is broken.
-import { writeFile } from "node:fs/promises";
-import { fileURLToPath } from "node:url";
-import { exhibitUrls } from "../src/lib/parts.ts";
-import type { V86Block } from "../src/lib/v86-block.ts";
-import { readExhibits } from "./exhibits.ts";
+Run directly, `scripts/exhibit-health.ts` checks `src/content/exhibits` against `SITE_URL` (default `https://hammadshakeelai.github.io/RetroMuseum/`). With no problems it prints "Every hosted disk image and copy.sh profile checked out." Otherwise it writes `exhibit-health.md` and exits 1. The report opens with "These exhibits have a problem:", lists the lines, then says: "A hosted exhibit whose origin is gone keeps working until the image cache expires: fix its diskImage.from or remove the exhibit. A copy.sh exhibit whose profile is gone no longer opens: update copyShProfile or remove the exhibit."
 
-export type Fetcher = (url: string, init: RequestInit) => Promise<Response>;
+`.github/workflows/exhibit-health.yml`: name "Exhibit health"; weekly `cron: "0 6 * * 1"` and `workflow_dispatch`; permissions `contents: read`, `issues: write`; job "Check exhibits" on `ubuntu-latest` with `SITE_URL: https://hammadshakeelai.github.io/${{ github.event.repository.name }}/`. It checks out, sets up Node 24 with the npm cache, and runs `npm ci`. The check step (`node scripts/exhibit-health.ts`, `continue-on-error: true`) is followed, on failure, by a step that creates the `exhibit-health` label if missing, comments on the open `exhibit-health` issue or creates "Exhibits need attention" with `exhibit-health.md`, then fails the run.
 
-/** Null when the URL works from the site; otherwise what went wrong. */
-export async function probe(url: string, fetcher: Fetcher = fetch): Promise<string | null> {
-  try {
-    const response = await fetcher(url, {
-      headers: { Origin: "https://hammadshakeelai.github.io", Range: "bytes=0-1023" },
-      signal: AbortSignal.timeout(30_000),
-    });
-    await response.body?.cancel();
-    if (response.status !== 200 && response.status !== 206) return `HTTP ${response.status}`;
-    if (response.headers.get("access-control-allow-origin") !== "*") return "no Access-Control-Allow-Origin: * header";
-    return null;
-  } catch (error) {
-    return error instanceof Error ? error.message : String(error);
-  }
-}
+`.github/ISSUE_TEMPLATE/removal-request.yml`: "Removal request", title prefix "Removal request: ", label `removal-request`. An intro says it is for people who hold rights to software shown in RetroMuseum, and that a valid request is handled by deleting that exhibit. Required inputs: "Exhibit" (name or page address) and "Your connection to the software". Optional: "Anything else we should know".
 
-export async function checkExhibits(dir: string, fetcher: Fetcher = fetch): Promise<string[]> {
-  const problems: string[] = [];
-  for (const exhibit of await readExhibits(dir)) {
-    for (const url of exhibitUrls(exhibit.data.v86 as V86Block)) {
-      const problem = await probe(url, fetcher);
-      if (problem) problems.push(`- **${exhibit.slug}**: ${url} (${problem})`);
-    }
-  }
-  return problems;
-}
+- [ ] **Step 3: Run the tests and the real check**
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const problems = await checkExhibits(fileURLToPath(new URL("../src/content/exhibits", import.meta.url)));
-  if (problems.length === 0) {
-    console.log("Every exhibit's disk images and snapshots load from i.copy.sh.");
-  } else {
-    const report = [
-      "These exhibits can't start because a disk image or snapshot didn't load from i.copy.sh:",
-      "",
-      ...problems,
-      "",
-      "If one stays broken, remove that exhibit's Markdown file and screenshot.",
-      "",
-    ].join("\n");
-    await writeFile("exhibit-health.md", report);
-    console.log(report);
-    process.exit(1);
-  }
-}
-```
+Run: `npx vitest run scripts; npm run lint; npm run typecheck`
+Expected: PASS and exit 0.
 
-`.github/workflows/exhibit-health.yml`:
-```yaml
-name: Exhibit health
+Then `npm run images; npm run build`, start `npm run preview` in the background, and run `SITE_URL=http://localhost:4321/RetroMuseum/ npm run health`. Expected: "Every hosted disk image and copy.sh profile checked out." and exit 0. Stop the preview.
 
-on:
-  schedule:
-    - cron: "0 6 * * 1"
-  workflow_dispatch:
-
-permissions:
-  contents: read
-  issues: write
-
-jobs:
-  check:
-    name: Check exhibit disk images
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: npm
-
-      - run: npm ci
-
-      - name: Request every exhibit's disk images
-        id: health
-        continue-on-error: true
-        run: node scripts/exhibit-health.ts
-
-      - name: Open or update an issue
-        if: steps.health.outcome == 'failure'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh label create exhibit-health --color d93f0b --description "Exhibit disk images that don't load" 2>/dev/null || true
-          number=$(gh issue list --label exhibit-health --state open --json number --jq '.[0].number')
-          if [ -n "$number" ]; then
-            gh issue comment "$number" --body-file exhibit-health.md
-          else
-            gh issue create --title "Exhibit disk images don't load" --label exhibit-health --body-file exhibit-health.md
-          fi
-
-      - name: Fail the run
-        if: steps.health.outcome == 'failure'
-        run: exit 1
-```
-
-`.github/ISSUE_TEMPLATE/removal-request.yml`:
-```yaml
-name: Removal request
-description: Ask for an exhibit to be removed from RetroMuseum.
-title: "Removal request: "
-labels: ["removal-request"]
-body:
-  - type: markdown
-    attributes:
-      value: Use this form if you hold rights to software shown in RetroMuseum and want its exhibit removed. A valid request is handled by deleting that exhibit.
-  - type: input
-    id: exhibit
-    attributes:
-      label: Exhibit
-      description: The exhibit's name or the address of its page.
-    validations:
-      required: true
-  - type: textarea
-    id: rights
-    attributes:
-      label: Your connection to the software
-      description: For example, you hold its copyright or act for the holder.
-    validations:
-      required: true
-  - type: textarea
-    id: details
-    attributes:
-      label: Anything else we should know
-```
-
-- [ ] **Step 4: Run the tests and the real check**
-
-Run: `npx vitest run scripts; npm run lint; npm run typecheck; npm run health`
-Expected: tests PASS; lint and typecheck exit 0; `npm run health` prints "Every exhibit's disk images and snapshots load from i.copy.sh." and exits 0.
-
-- [ ] **Step 5: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
 git add scripts/exhibit-health.ts scripts/exhibit-health.test.ts .github/workflows/exhibit-health.yml .github/ISSUE_TEMPLATE/removal-request.yml
@@ -2847,184 +2037,32 @@ git commit -m "feat: add the weekly exhibit health check and the removal-request
 - Modify: `README.md` (rewritten), `THIRD_PARTY_NOTICES.md` (rewritten)
 
 **Interfaces:**
-- Consumes: the built site; exhibit `kolibrios` for the running screenshot (use another included graphical exhibit if Task 7 left it out).
+- Consumes: the built site; hosted exhibit `kolibrios` for the running screenshot (another hosted graphical exhibit if Task 7 left it out).
 
 - [ ] **Step 1: Write the banner and the README image script**
 
-`docs/banner.html`:
-```html
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<style>
-  html, body { margin: 0; width: 1280px; height: 320px; background: #d9d2c0; font-family: Tahoma, Verdana, sans-serif; }
-  .window { position: absolute; left: 40px; top: 36px; width: 1200px; height: 248px; background: #c9c1ad; border: 3px solid; border-color: #f4efe2 #8a8472 #8a8472 #f4efe2; }
-  .title { background: linear-gradient(90deg, #000080, #1084d0); color: #fff; font-weight: bold; font-size: 22px; padding: 8px 14px; }
-  .body { display: flex; gap: 28px; padding: 18px 22px; align-items: flex-start; }
-  .copy h1 { margin: 0; font-size: 56px; color: #1d1d1d; letter-spacing: -0.01em; }
-  .copy p { margin: 10px 0 0; font-size: 22px; color: #3d3a30; max-width: 500px; }
-  .shelf { flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-  .exhibit { background: #f4efe2; border: 1px solid #8a8472; padding: 8px 10px; font-size: 16px; color: #3d3a30; }
-  .exhibit b { display: block; font-size: 18px; color: #1d1d1d; }
-</style>
-</head>
-<body>
-  <div class="window">
-    <div class="title">RetroMuseum: Exhibit hall</div>
-    <div class="body">
-      <div class="copy">
-        <h1>RetroMuseum</h1>
-        <p>Operating systems you can boot in your browser, with their stories.</p>
-      </div>
-      <div class="shelf">
-        <div class="exhibit"><b>Windows 1.01</b>1985</div>
-        <div class="exhibit"><b>FreeDOS</b>DOS</div>
-        <div class="exhibit"><b>KolibriOS</b>On one floppy</div>
-        <div class="exhibit"><b>HelenOS</b>Microkernel</div>
-        <div class="exhibit"><b>ELKS</b>Linux for the 8086</div>
-        <div class="exhibit"><b>TetrOS</b>512 bytes</div>
-      </div>
-    </div>
-  </div>
-</body>
-</html>
-```
+`docs/banner.html`: a 1280×320 machine-room window titled "RetroMuseum: Exhibit hall", with the name, "Operating systems you can boot in your browser, with their stories.", and a shelf of six included exhibits with a short note each. `scripts/readme-images.ts` renders the banner at 2× to `docs/banner.png`, captures the hall at 1280×860 to `docs/screenshots/hall.png`, and boots `kolibrios` for 45 seconds to capture `docs/screenshots/exhibit.png`, from a running preview.
 
-`scripts/readme-images.ts`:
-```ts
-// Renders docs/banner.png and captures the README screenshots from a running preview
-// (npm run build && npm run preview first).
-import { chromium } from "@playwright/test";
-import { fileURLToPath, pathToFileURL } from "node:url";
-
-const root = (path: string) => fileURLToPath(new URL(`../${path}`, import.meta.url));
-const site = `http://localhost:4321${process.env.BASE_PATH ?? "/RetroMuseum/"}`;
-const browser = await chromium.launch();
-
-const banner = await browser.newPage({ viewport: { width: 1280, height: 320 }, deviceScaleFactor: 2 });
-await banner.goto(pathToFileURL(root("docs/banner.html")).href);
-await banner.screenshot({ path: root("docs/banner.png") });
-
-const page = await browser.newPage({ viewport: { width: 1280, height: 860 } });
-await page.goto(site);
-await page.screenshot({ path: root("docs/screenshots/hall.png") });
-await page.goto(`${site}exhibits/kolibrios/`);
-await page.getByRole("button", { name: "Boot it" }).click();
-await page.waitForTimeout(45_000);
-await page.screenshot({ path: root("docs/screenshots/exhibit.png") });
-
-await browser.close();
-console.log("Wrote docs/banner.png, docs/screenshots/hall.png and docs/screenshots/exhibit.png");
-```
-
-Run: `npm run build`, start `npm run preview` in the background, then `npm run readme-images`, then stop the preview (find its PID with `netstat -ano | grep ":4321 .*LISTENING"` and `taskkill //PID <pid> //F`).
-Expected: the three PNGs exist. Open each and check: the banner is sharp and uncropped; the hall screenshot shows the placard and strip; the exhibit screenshot shows KolibriOS's desktop with the toolbar.
+Run: `npm run images; npm run build`, the preview in the background, `npm run readme-images`, then stop the preview. Open each PNG: the banner is sharp and uncropped, the hall shows the placard and strip, and the exhibit shows KolibriOS's desktop with the toolbar.
 
 - [ ] **Step 2: Rewrite the README and the notices**
 
-`README.md`:
-~~~~markdown
-<p align="center"><a href="https://hammadshakeelai.github.io/RetroMuseum/"><img src="docs/banner.png" alt="RetroMuseum: operating systems you can boot in your browser" width="100%"></a></p>
-
-**Visit:** https://hammadshakeelai.github.io/RetroMuseum/
-
-RetroMuseum is a museum of operating systems you can boot in your browser. Each exhibit is a real operating system running in the [v86](https://github.com/copy/v86) PC emulator, with its story, its facts, and things to try.
-
-<p align="center"><img src="docs/screenshots/hall.png" alt="The RetroMuseum exhibit hall" width="100%"></p>
-<p align="center"><img src="docs/screenshots/exhibit.png" alt="KolibriOS running on its exhibit page" width="100%"></p>
-
-## Visiting
-
-- **Exhibit hall:** one exhibit at a time, with **Previous** and **Next**, and every exhibit in a strip below, oldest first.
-- **All exhibits:** every exhibit, filtered by family: DOS; Windows; Unix, BSD & Linux; Independent; Boot-sector.
-- **An exhibit:** press **Boot it**. The system starts in the page and downloads its disk image as it reads it. The page says roughly how much that is.
-
-Every exhibit booted to a working screen in RetroMuseum's screenshot check before it was added.
-
-## Copyrighted exhibits
-
-Some exhibits are copyrighted software, shown for their history. Their disk images load from copy.sh, the v86 project's server, and can't be downloaded from this site. If you hold rights to one and want it removed, [open a removal request](https://github.com/hammadshakeelai/RetroMuseum/issues/new?template=removal-request.yml).
-
-## Development
-
-Requires Node 22.12 or newer.
-
-```bash
-npm install
-npm run dev            # http://localhost:4321/RetroMuseum/
-npm test               # unit tests
-npm run typecheck
-npm run build && npm run test:e2e
-```
-
-### Adding an exhibit
-
-1. Create `src/content/exhibits/<slug>.md`. Copy the exhibit's boot settings from its profile in v86's [`src/browser/main.js`](https://github.com/copy/v86/blob/master/src/browser/main.js): `state` becomes `initial_state`, `host` becomes `https://i.copy.sh/`, and sizes are written as numbers. See an existing exhibit for the other fields.
-2. Write its story, facts, and things to try from the sources you list.
-3. Run `npm run screenshots -- --only=<slug> --write`. It boots the exhibit, saves its screenshot, and records how much it downloads. Check the screenshot before committing.
-
-A weekly workflow checks that every exhibit's disk images still load and opens an issue if one doesn't.
-
-## License
-
-MIT. See `THIRD_PARTY_NOTICES.md` for v86, SeaBIOS, and the operating systems shown.
-~~~~
+`README.md`: the banner linking to the site; "**Visit:** https://hammadshakeelai.github.io/RetroMuseum/"; one paragraph on what RetroMuseum is; both screenshots. Then:
+- **Visiting**: the hall, All exhibits with its families, and exhibit pages. Small open-source exhibits boot on their page with **Boot it**; the rest open on copy.sh with **Run it on copy.sh**. Every exhibit passed the screenshot check before it was added.
+- **Copyrighted exhibits**: they run on copy.sh, the v86 project's site; RetroMuseum doesn't host or offer their disk images; the removal-request link.
+- **Development**: Node 22.12 or newer; `npm install`, `npm run images`, `npm run dev`, `npm test`, `npm run typecheck`, `npm run build && npm run test:e2e`.
+- **Adding an exhibit**: create `src/content/exhibits/<slug>.md` from v86's profile, as a hosted exhibit (open-source, no snapshot, at most 100 MB, with `diskImage` and `v86`) or a copy.sh exhibit (`copyShProfile`). Write its story, facts, and things to try from its sources. Run `npm run images` and `npm run screenshots -- --only=<slug> --write`, and check the screenshot. A weekly workflow checks image origins, the live site, and copy.sh profiles.
+- **License**: MIT; see `THIRD_PARTY_NOTICES.md`.
 
 `THIRD_PARTY_NOTICES.md`:
-~~~~markdown
-# Third-Party Notices
-
-RetroMuseum's own code is MIT-licensed (see `LICENSE`). It redistributes the following, each under its own license.
-
-## v86
-
-The emulator code bundled into the site and `v86.wasm`, both from the npm `v86` package, version 0.5.460.
-
-- Project: https://github.com/copy/v86
-- License: BSD-2-Clause (below). The v86 build also contains Berkeley SoftFloat, zstd decompression, and floppy code ported from QEMU, each under its own license; see the v86 repository.
-
-```
-Copyright (c) 2012, The v86 contributors
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-1. Redistributions of source code must retain the above copyright notice, this
-   list of conditions and the following disclaimer.
-2. Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-```
-
-## SeaBIOS and SeaVGABIOS
-
-`public/bios/seabios.bin` and `public/bios/vgabios.bin`.
-
-- Project: https://www.seabios.org/ (version `rel-1.16.2`)
-- License: GNU Lesser General Public License v3
-- Source: https://review.coreboot.org/seabios.git, tag `rel-1.16.2`
-
-## Operating systems shown
-
-No operating system image is stored in this repository or published on the site. When a visitor presses **Boot it**, the browser loads the disk image, and for some exhibits a saved machine snapshot, from `https://i.copy.sh/`, the v86 project's server. Each operating system remains under its own license. The Windows, MS-DOS, 86-DOS, and BeOS exhibits are copyrighted software, shown for their history.
-~~~~
+- v86 0.5.460 with its BSD-2-Clause text.
+- SeaBIOS and SeaVGABIOS `rel-1.16.2`, LGPL v3, source.
+- **Operating systems hosted on this site**: a table of each hosted exhibit's image file, where it was downloaded from, its license, and its source code, taken from the exhibit files. Each system remains under its own license.
+- **Operating systems on copy.sh**: the other exhibits open on copy.sh; RetroMuseum doesn't host their images. The Windows, MS-DOS, 86-DOS, and BeOS exhibits are copyrighted software, shown for their history.
 
 - [ ] **Step 3: Final local checks**
 
-Run: `npm run lint; npm run typecheck; npm test; npm run build; npm run test:e2e`
+Run: `npm run lint; npm run typecheck; npm test; npm run images; npm run build; npm run test:e2e`
 Expected: all exit 0, 6 end-to-end tests passed.
 
 - [ ] **Step 4: Commit, push, and open the pull request**
@@ -3033,46 +2071,41 @@ Expected: all exit 0, 6 end-to-end tests passed.
 git add README.md THIRD_PARTY_NOTICES.md docs/banner.html docs/banner.png docs/screenshots/hall.png docs/screenshots/exhibit.png scripts/readme-images.ts
 git commit -m "docs: RetroMuseum README, notices, banner and screenshots"
 git push -u origin retromuseum
-gh pr create -R hammadshakeelai/WebOS --base master --head retromuseum --title "RetroMuseum: replace WebOS with a museum of operating systems" --body-file <(cat <<'EOF'
-Replaces the Browser Linux Lab with RetroMuseum (spec: `docs/superpowers/specs/2026-09-13-retromuseum-design.md`, plan: `docs/superpowers/plans/2026-09-13-retromuseum.md`).
-
-- Astro static site: exhibit hall, All exhibits with family filters, one page per exhibit, About, 404.
-- Exhibits boot in v86 on their page, with download progress, stall and error dialogs, fit-to-area scaling, and a machine toolbar.
-- First exhibits (each passed the screenshot boot check): <list the included slugs>. Left out: <list with reasons, or "none">.
-- Weekly exhibit health check and a removal-request template.
-- Removes the old app, including the bundled Linux kernel image.
-
-The site's base path comes from the repository name, so it deploys to /WebOS/ now and to /RetroMuseum/ after the rename. The rest of the collection follows in a second pull request.
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
-EOF
-)
 ```
 
-Replace the two `<…>` lists with the real results from Task 7 before running the command.
+Open the pull request (`gh pr create -R hammadshakeelai/WebOS --base master --head retromuseum --title "RetroMuseum: replace WebOS with a museum of operating systems"`). The body covers:
+- the spec and plan paths;
+- the pages;
+- hosted exhibits booting from the site's own images, and copy.sh exhibits linking out, with why (spec section 12);
+- the included exhibits and any left out, with reasons;
+- the health check and the removal template;
+- the removal of the old app;
+- the base path following the repo name.
+
+It ends with the Claude Code line.
 
 - [ ] **Step 5: Wait for CI, merge, and check the deploy**
 
-```bash
-gh pr checks -R hammadshakeelai/WebOS retromuseum --watch
-gh api repos/hammadshakeelai/WebOS/environments/github-pages/deployment-branch-policies --jq '.branch_policies[].name'
-```
+`gh pr checks -R hammadshakeelai/WebOS retromuseum --watch`; confirm the `github-pages` environment policy still lists `master`. If CI fails, read the failed log, fix, commit, push. Merge from outside the repo folder with `gh pr merge -R hammadshakeelai/WebOS retromuseum --squash`, and wait for the Deploy run of the merge commit.
 
-Expected: "Lint, test, and build" passes; the environment policy lists `master`. If CI fails, read the log (`gh run view <id> -R hammadshakeelai/WebOS --log-failed`), fix the cause, commit, and push.
-
-From outside the repo folder: `gh pr merge -R hammadshakeelai/WebOS retromuseum --squash`. Then find the Deploy run for the merge commit (`gh run list -R hammadshakeelai/WebOS --workflow deploy.yml --limit 1`) and wait for it to succeed.
-
-Check the live site at `https://hammadshakeelai.github.io/WebOS/` in the Browser pane: the hall loads with the first exhibit; `exhibits/` filters; `exhibits/tetros/` boots TetrOS; `exhibits/windows1/` shows the copyright label; `about/` links to the removal request; `exhibits/nope/` shows File not found.
+On `https://hammadshakeelai.github.io/WebOS/` in the Browser pane:
+- the hall loads;
+- `exhibits/` filters;
+- `exhibits/tetros/` boots TetrOS from `/WebOS/images/tetros.img`;
+- `exhibits/kolibrios/` boots;
+- `exhibits/windows1/` shows the copyright label and its copy.sh link opens the profile;
+- `about/` links to the removal request;
+- `exhibits/nope/` shows File not found.
 
 ---
 
 ### Task 11: The rest of the collection
 
 **Files:**
-- Create: `src/content/exhibits/{86dos,msdos,windows2,windows31,windows95,windows98,windowsnt4,windows2000,unix-v7,minix,openbsd,netbsd,dsl,beos,haiku,serenity,redox,oberon,sortix,duskos}.md` and their screenshots
+- Create: `src/content/exhibits/{duskos,oberon,sortix,86dos,msdos,windows2,windows31,windows95,windows98,windowsnt4,windows2000,unix-v7,minix,openbsd,netbsd,dsl,beos,haiku,serenity,redox}.md` and their screenshots
 
 **Interfaces:**
-- Consumes: the same authoring rules as Task 7, the collection schema, `npm run screenshots`.
+- Consumes: Task 7's authoring rules, the collection schema, `npm run images`, `npm run screenshots`.
 
 - [ ] **Step 1: Branch from the merged master**
 
@@ -3084,331 +2117,29 @@ git switch -c exhibits-2
 
 - [ ] **Step 2: Write the twenty files with these exact settings**
 
-Follow Task 7's authoring rules for `maker`, `year`, `summary`, `facts`, `tryThis`, and the story. For snapshot exhibits (`initial_state`), the year and version come from the system shown after resuming.
+Follow Task 7's authoring rules. For a copy.sh exhibit that resumes from a snapshot on copy.sh, the year and version come from the system shown after resuming.
 
-`86dos.md`:
-```yaml
-title: 86-DOS
-family: dos
-license: proprietary
-screenshotWaitSeconds: 30
-homepage: https://www.os2museum.com/wp/pc-86-dos/
-sources:
-  - https://en.wikipedia.org/wiki/86-DOS
-  - https://www.os2museum.com/wp/pc-86-dos/
-v86:
-  fda:
-    url: https://i.copy.sh/pc86dos.img
-    size: 163840
-```
+Hosted:
 
-`msdos.md`:
+`duskos.md`:
 ```yaml
-title: MS-DOS 6.22
-family: dos
-license: proprietary
-screenshotWaitSeconds: 90
-sources:
-  - https://en.wikipedia.org/wiki/MS-DOS
-v86:
-  hda:
-    url: https://i.copy.sh/msdos622/.img
-    size: 67108864
-    async: true
-    fixed_chunk_size: 262144
-    use_parts: true
-```
-
-`windows2.md`:
-```yaml
-title: Windows 2.03
-family: windows
-license: proprietary
+title: Dusk OS
+family: independent
+license: open-source
 screenshotWaitSeconds: 60
+homepage: http://duskos.org/
 sources:
-  - https://en.wikipedia.org/wiki/Windows_2.0
+  - http://duskos.org/
+diskImage:
+  from: https://i.copy.sh/duskos.img
+  sha256: 5b0633abf967bdea319a454126da687db3ee7e0ce6636c2e0665d00fe406f51a
+  license: CC0-1.0
+  source: https://git.sr.ht/~vdupras/duskos
 v86:
   hda:
-    url: https://i.copy.sh/windows2.img
-    size: 4177920
+    url: duskos.img
+    size: 8388608
     async: false
-```
-
-`windows31.md`:
-```yaml
-title: Windows 3.1
-family: windows
-license: proprietary
-screenshotWaitSeconds: 120
-sources:
-  - https://en.wikipedia.org/wiki/Windows_3.1
-v86:
-  memory_size: 67108864
-  hda:
-    url: https://i.copy.sh/win31.img
-    size: 34463744
-    async: false
-```
-
-`windows95.md`:
-```yaml
-title: Windows 95
-family: windows
-license: proprietary
-screenshotWaitSeconds: 300
-sources:
-  - https://en.wikipedia.org/wiki/Windows_95
-v86:
-  memory_size: 67108864
-  hda:
-    url: https://i.copy.sh/windows95-v3/.img
-    size: 471859200
-    async: true
-    fixed_chunk_size: 262144
-    use_parts: true
-```
-
-`windows98.md`:
-```yaml
-title: Windows 98
-family: windows
-license: proprietary
-screenshotWaitSeconds: 90
-sources:
-  - https://en.wikipedia.org/wiki/Windows_98
-v86:
-  memory_size: 134217728
-  hda:
-    url: https://i.copy.sh/windows98/.img
-    size: 314572800
-    async: true
-    fixed_chunk_size: 262144
-    use_parts: true
-  initial_state:
-    url: https://i.copy.sh/windows98_state-v2.bin.zst
-```
-
-`windowsnt4.md`:
-```yaml
-title: Windows NT 4.0
-family: windows
-license: proprietary
-screenshotWaitSeconds: 300
-sources:
-  - https://en.wikipedia.org/wiki/Windows_NT_4.0
-v86:
-  memory_size: 536870912
-  hda:
-    url: https://i.copy.sh/winnt4_noacpi/.img
-    size: 523837440
-    async: true
-    fixed_chunk_size: 262144
-    use_parts: true
-  cpuid_level: 2
-```
-
-`windows2000.md`:
-```yaml
-title: Windows 2000
-family: windows
-license: proprietary
-screenshotWaitSeconds: 120
-sources:
-  - https://en.wikipedia.org/wiki/Windows_2000
-v86:
-  memory_size: 536870912
-  hda:
-    url: https://i.copy.sh/windows2k-v2/.img
-    size: 2147483648
-    async: true
-    fixed_chunk_size: 262144
-    use_parts: true
-  initial_state:
-    url: https://i.copy.sh/windows2k_state-v4.bin.zst
-```
-
-`unix-v7.md`:
-```yaml
-title: Unix V7
-family: unix-bsd-linux
-license: open-source
-screenshotWaitSeconds: 120
-sources:
-  - https://en.wikipedia.org/wiki/Version_7_Unix
-  - http://www.nordier.com/v7x86/
-v86:
-  hda:
-    url: https://i.copy.sh/unix-v7x86-0.8a/.img
-    size: 152764416
-    async: true
-    fixed_chunk_size: 262144
-    use_parts: true
-```
-
-`minix.md`:
-```yaml
-title: Minix
-family: unix-bsd-linux
-license: open-source
-screenshotWaitSeconds: 300
-homepage: https://www.minix3.org/
-sources:
-  - https://en.wikipedia.org/wiki/Minix
-  - https://www.minix3.org/
-v86:
-  memory_size: 268435456
-  cdrom:
-    url: https://i.copy.sh/minix-3.3.0/.iso
-    size: 605581312
-    async: true
-    fixed_chunk_size: 1048576
-    use_parts: true
-```
-
-`openbsd.md`:
-```yaml
-title: OpenBSD
-family: unix-bsd-linux
-license: open-source
-screenshotWaitSeconds: 120
-homepage: https://www.openbsd.org/
-sources:
-  - https://en.wikipedia.org/wiki/OpenBSD
-  - https://www.openbsd.org/
-v86:
-  memory_size: 268435456
-  hda:
-    url: https://i.copy.sh/openbsd/.img
-    size: 1073741824
-    async: true
-    fixed_chunk_size: 1048576
-    use_parts: true
-  initial_state:
-    url: https://i.copy.sh/openbsd_state-v2.bin.zst
-```
-
-`netbsd.md`:
-```yaml
-title: NetBSD
-family: unix-bsd-linux
-license: open-source
-screenshotWaitSeconds: 300
-homepage: https://www.netbsd.org/
-sources:
-  - https://en.wikipedia.org/wiki/NetBSD
-  - https://www.netbsd.org/
-v86:
-  memory_size: 268435456
-  hda:
-    url: https://i.copy.sh/netbsd/.img
-    size: 511000064
-    async: true
-    fixed_chunk_size: 1048576
-    use_parts: true
-```
-
-`dsl.md`:
-```yaml
-title: Damn Small Linux
-family: unix-bsd-linux
-license: open-source
-screenshotWaitSeconds: 240
-homepage: http://www.damnsmalllinux.org/
-sources:
-  - https://en.wikipedia.org/wiki/Damn_Small_Linux
-  - http://www.damnsmalllinux.org/
-v86:
-  memory_size: 268435456
-  cdrom:
-    url: https://i.copy.sh/dsl-4.11.rc2.iso
-    size: 52824064
-    async: false
-```
-
-`beos.md`:
-```yaml
-title: BeOS 5
-family: independent
-license: proprietary
-screenshotWaitSeconds: 300
-sources:
-  - https://en.wikipedia.org/wiki/BeOS
-v86:
-  memory_size: 536870912
-  hda:
-    url: https://i.copy.sh/beos5/.img
-    size: 536870912
-    async: true
-    fixed_chunk_size: 1048576
-    use_parts: true
-```
-
-`haiku.md`:
-```yaml
-title: Haiku
-family: independent
-license: open-source
-screenshotWaitSeconds: 180
-homepage: https://www.haiku-os.org/
-sources:
-  - https://en.wikipedia.org/wiki/Haiku_(operating_system)
-  - https://www.haiku-os.org/
-v86:
-  memory_size: 536870912
-  hda:
-    url: https://i.copy.sh/haiku-v5/.img
-    size: 1342177280
-    async: true
-    fixed_chunk_size: 1048576
-    use_parts: true
-  initial_state:
-    url: https://i.copy.sh/haiku_state-v5.bin.zst
-  acpi: true
-```
-
-`serenity.md`:
-```yaml
-title: SerenityOS
-family: independent
-license: open-source
-screenshotWaitSeconds: 180
-homepage: https://serenityos.org/
-sources:
-  - https://en.wikipedia.org/wiki/SerenityOS
-  - https://serenityos.org/
-v86:
-  memory_size: 536870912
-  hda:
-    url: https://i.copy.sh/serenity-v3/.img.zst
-    size: 734003200
-    async: true
-    fixed_chunk_size: 1048576
-    use_parts: true
-  initial_state:
-    url: https://i.copy.sh/serenity_state-v4.bin.zst
-```
-
-`redox.md`:
-```yaml
-title: Redox
-family: independent
-license: open-source
-screenshotWaitSeconds: 180
-homepage: https://www.redox-os.org/
-sources:
-  - https://en.wikipedia.org/wiki/Redox_(operating_system)
-  - https://www.redox-os.org/
-v86:
-  memory_size: 1073741824
-  hda:
-    url: https://i.copy.sh/redox_demo_i686_2024-09-07_1225_harddrive/.img
-    size: 671088640
-    async: true
-    fixed_chunk_size: 1048576
-    use_parts: true
-  initial_state:
-    url: https://i.copy.sh/redox_state-v2.bin.zst
-  acpi: true
 ```
 
 `oberon.md`:
@@ -3419,9 +2150,13 @@ license: open-source
 screenshotWaitSeconds: 60
 sources:
   - https://en.wikipedia.org/wiki/Oberon_(operating_system)
+diskImage:
+  from: https://i.copy.sh/oberon.img
+  sha256: ebd5825d013c1c342c8f48b49d5a33f3ef477f1777c362bc0e5d91b75ffd1196
+  license: ETH Oberon license (BSD-style)
 v86:
   hda:
-    url: https://i.copy.sh/oberon.img
+    url: oberon.img
     size: 25165824
     async: false
 ```
@@ -3435,46 +2170,58 @@ screenshotWaitSeconds: 180
 homepage: https://sortix.org/
 sources:
   - https://sortix.org/
+diskImage:
+  from: https://pub.sortix.org/sortix/release/1.0/builds/sortix-1.0-i686.iso
+  sha256: 03d91cf60e409300f4cb7cbe115f0c86de36841386644a340457fe6ec6a535b7
+  license: ISC
+  source: https://pub.sortix.org/sortix/release/1.0/source/sortix-1.0.tar.xz
 v86:
   memory_size: 536870912
   cdrom:
-    url: https://i.copy.sh/sortix-1.0-i686.iso
+    url: sortix-1.0-i686.iso
     size: 71075840
     async: false
 ```
 
-`duskos.md`:
-```yaml
-title: Dusk OS
-family: independent
-license: open-source
-screenshotWaitSeconds: 60
-homepage: http://duskos.org/
-sources:
-  - http://duskos.org/
-v86:
-  hda:
-    url: https://i.copy.sh/duskos.img
-    size: 8388608
-    async: false
-```
+copy.sh (each file has `title`, `family`, `license`, `screenshotWaitSeconds`, optional `homepage`, `sources`, and `copyShProfile`):
+
+| File | title | family | license | wait | homepage | sources | copyShProfile |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `86dos.md` | 86-DOS | dos | proprietary | 30 | https://www.os2museum.com/wp/pc-86-dos/ | https://en.wikipedia.org/wiki/86-DOS, https://www.os2museum.com/wp/pc-86-dos/ | 86dos |
+| `msdos.md` | MS-DOS 6.22 | dos | proprietary | 90 | | https://en.wikipedia.org/wiki/MS-DOS | msdos |
+| `windows2.md` | Windows 2.03 | windows | proprietary | 60 | | https://en.wikipedia.org/wiki/Windows_2.0 | windows2 |
+| `windows31.md` | Windows 3.1 | windows | proprietary | 120 | | https://en.wikipedia.org/wiki/Windows_3.1 | windows31 |
+| `windows95.md` | Windows 95 | windows | proprietary | 300 | | https://en.wikipedia.org/wiki/Windows_95 | windows95 |
+| `windows98.md` | Windows 98 | windows | proprietary | 90 | | https://en.wikipedia.org/wiki/Windows_98 | windows98 |
+| `windowsnt4.md` | Windows NT 4.0 | windows | proprietary | 300 | | https://en.wikipedia.org/wiki/Windows_NT_4.0 | windowsnt4 |
+| `windows2000.md` | Windows 2000 | windows | proprietary | 120 | | https://en.wikipedia.org/wiki/Windows_2000 | windows2000 |
+| `unix-v7.md` | Unix V7 | unix-bsd-linux | open-source | 120 | | https://en.wikipedia.org/wiki/Version_7_Unix, http://www.nordier.com/v7x86/ | unix-v7 |
+| `minix.md` | Minix | unix-bsd-linux | open-source | 300 | https://www.minix3.org/ | https://en.wikipedia.org/wiki/Minix, https://www.minix3.org/ | minix |
+| `openbsd.md` | OpenBSD | unix-bsd-linux | open-source | 120 | https://www.openbsd.org/ | https://en.wikipedia.org/wiki/OpenBSD, https://www.openbsd.org/ | openbsd |
+| `netbsd.md` | NetBSD | unix-bsd-linux | open-source | 300 | https://www.netbsd.org/ | https://en.wikipedia.org/wiki/NetBSD, https://www.netbsd.org/ | netbsd |
+| `dsl.md` | Damn Small Linux | unix-bsd-linux | open-source | 240 | http://www.damnsmalllinux.org/ | https://en.wikipedia.org/wiki/Damn_Small_Linux, http://www.damnsmalllinux.org/ | dsl |
+| `beos.md` | BeOS 5 | independent | proprietary | 300 | | https://en.wikipedia.org/wiki/BeOS | beos |
+| `haiku.md` | Haiku | independent | open-source | 180 | https://www.haiku-os.org/ | https://en.wikipedia.org/wiki/Haiku_(operating_system), https://www.haiku-os.org/ | haiku |
+| `serenity.md` | SerenityOS | independent | open-source | 180 | https://serenityos.org/ | https://en.wikipedia.org/wiki/SerenityOS, https://serenityos.org/ | serenity |
+| `redox.md` | Redox | independent | open-source | 180 | https://www.redox-os.org/ | https://en.wikipedia.org/wiki/Redox_(operating_system), https://www.redox-os.org/ | redox |
 
 - [ ] **Step 3: Take the screenshots in batches**
 
-Run each batch in the background and wait for it to finish:
+Run `npm run images` (expected: all hosted images), then each batch in the background:
 ```bash
+npm run screenshots -- --only=duskos,oberon,sortix --write
 npm run screenshots -- --only=86dos,msdos,windows2,windows31,windows95,windows98,windowsnt4,windows2000 --write
 npm run screenshots -- --only=unix-v7,minix,openbsd,netbsd,dsl --write
-npm run screenshots -- --only=beos,haiku,serenity,redox,oberon,sortix,duskos --write
+npm run screenshots -- --only=beos,haiku,serenity,redox --write
 ```
 
-Expected: one line per exhibit and a count per batch. Review every PNG as in Task 7 Step 2, raise waits where the screen shows an earlier boot stage, and leave out exhibits that still fail. v86's own profile notes BeOS "segfaults if 256k bios is used": if BeOS fails, compare `public/bios/seabios.bin` with `https://github.com/copy/v86/raw/master/bios/seabios.bin` before leaving it out.
+Review every PNG as in Task 7 Step 2, raise waits where the screen shows an earlier boot stage, and leave out exhibits that still fail.
 
 - [ ] **Step 4: Confirm the things to try, verify, and commit**
 
-Boot each included exhibit in the preview and try every `tryThis` entry; fix any that don't work.
+Try every `tryThis` entry: hosted exhibits in the preview, copy.sh exhibits on their copy.sh page. Fix any that don't work.
 
-Run: `npm run lint; npm run typecheck; npm test; npm run build; npm run test:e2e; npm run health`
+Run: `npm run lint; npm run typecheck; npm test; npm run images; npm run build; npm run test:e2e`, then the health check against the preview as in Task 9 Step 3.
 Expected: all exit 0.
 
 ```bash
@@ -3483,7 +2230,7 @@ git commit -m "feat: add the rest of the collection"
 git push -u origin exhibits-2
 ```
 
-Open a pull request (`gh pr create -R hammadshakeelai/WebOS --base master --head exhibits-2 --title "Add the rest of the exhibits"`) whose body lists the included exhibits with their download sizes and any left out with reasons, ending with the Claude Code line. Wait for "Lint, test, and build", merge with `gh pr merge -R hammadshakeelai/WebOS exhibits-2 --squash` from outside the repo folder, wait for Deploy, and check three exhibits of different families on `https://hammadshakeelai.github.io/WebOS/`: a Windows snapshot exhibit (Windows 98 or 2000), a cold-boot exhibit (MS-DOS 6.22), and Haiku.
+Open a pull request (`gh pr create -R hammadshakeelai/WebOS --base master --head exhibits-2 --title "Add the rest of the exhibits"`). Its body lists the included exhibits (hosted or copy.sh, with download sizes) and any left out with reasons, and ends with the Claude Code line. Wait for "Lint, test, and build", merge with `gh pr merge -R hammadshakeelai/WebOS exhibits-2 --squash` from outside the repo folder, and wait for Deploy. On `https://hammadshakeelai.github.io/WebOS/`, check that Sortix boots on its page, and that Windows 98 and Haiku link to their copy.sh profiles.
 
 ---
 
@@ -3526,13 +2273,18 @@ Wait for the run to succeed (`gh run watch <id> -R hammadshakeelai/RetroMuseum`)
 - [ ] **Step 4: Check the live site**
 
 ```bash
-for path in "" exhibits/ exhibits/tetros/ about/; do curl -s -o /dev/null -w "%{http_code} /RetroMuseum/$path\n" "https://hammadshakeelai.github.io/RetroMuseum/$path"; done
+for path in "" exhibits/ exhibits/tetros/ about/ images/tetros.img; do curl -s -o /dev/null -w "%{http_code} /RetroMuseum/$path\n" "https://hammadshakeelai.github.io/RetroMuseum/$path"; done
 curl -s "https://hammadshakeelai.github.io/RetroMuseum/exhibits/nope/" | grep -c "The page you asked for isn't in the collection."
 ```
 
-Expected: `200` for all four; `1` for the not-found text.
+Expected: `200` for all five; `1` for the not-found text.
 
-In the Browser pane, open `https://hammadshakeelai.github.io/RetroMuseum/`: step through the hall, filter by Windows, boot TetrOS and one large exhibit, and confirm the About page's removal link opens the removal-request form on `hammadshakeelai/RetroMuseum`.
+In the Browser pane, open `https://hammadshakeelai.github.io/RetroMuseum/`:
+- step through the hall;
+- filter by Windows;
+- boot TetrOS and Sortix;
+- open Windows 95's copy.sh link;
+- confirm the About page's removal link opens the form on `hammadshakeelai/RetroMuseum`.
 
 - [ ] **Step 5: Run the health check once**
 
@@ -3544,9 +2296,10 @@ Wait for it; expected: success, and no `exhibit-health` issue opened.
 
 - [ ] **Step 6: Check "Done means" (spec section 11)**
 
-- Every shipped exhibit passed the screenshot script's boot check (Tasks 7 and 11).
+- Every shipped exhibit passed the screenshot script's check (Tasks 7 and 11).
 - The hall, All exhibits, and exhibit pages work at desktop and phone widths (check `mobile` in the Browser pane).
-- Every proprietary exhibit shows the copyright label; the removal-request template exists.
+- Every proprietary exhibit shows the copyright label and links to copy.sh; the removal-request template exists.
+- Every hosted exhibit names its disk image's license; `THIRD_PARTY_NOTICES.md` lists each image with its origin and source.
 - The About page credits v86 and copy.sh.
 - CI, Deploy, and Exhibit health are green.
 - The README has a banner and screenshots.

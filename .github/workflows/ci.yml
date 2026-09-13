@@ -29,4 +29,12 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
+
+      - uses: actions/cache@v6
+        with:
+          path: public/images
+          key: exhibit-images-${{ hashFiles('src/content/exhibits/*.md') }}
+          restore-keys: exhibit-images-
+
+      - run: npm run images
       - run: npm run build

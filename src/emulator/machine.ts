@@ -31,6 +31,8 @@ export interface Runtime {
   wasmUrl: string;
   biosUrl: string;
   vgaBiosUrl: string;
+  /** The site's images/ address, ending in a slash. */
+  imageBase: string;
 }
 
 export interface MachineDeps {
@@ -49,10 +51,15 @@ export const CTRL_ALT_DEL = [0x1d, 0x38, 0x53, 0x9d, 0xb8, 0xd3];
 export const STALL_MS = 60_000;
 const STALL_CHECK_MS = 5_000;
 
-/** The exhibit's block, unchanged, plus what the page supplies (spec section 4). */
+/** The exhibit's block with its disk in the site's images folder, plus what the page supplies (spec section 4). */
 export function v86Options(block: V86Block, runtime: Runtime, container: HTMLElement): Record<string, unknown> {
+  const options: Record<string, unknown> = { ...block };
+  for (const key of ["fda", "hda", "cdrom"] as const) {
+    const disk = block[key];
+    if (disk) options[key] = { ...disk, url: runtime.imageBase + disk.url };
+  }
   return {
-    ...block,
+    ...options,
     wasm_path: runtime.wasmUrl,
     bios: { url: runtime.biosUrl },
     vga_bios: { url: runtime.vgaBiosUrl },

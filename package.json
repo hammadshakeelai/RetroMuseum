@@ -7,10 +7,11 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview --port 4321",
-    "lint": "oxlint --deny-warnings src",
+    "lint": "oxlint --deny-warnings src scripts",
     "typecheck": "astro check",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "images": "node scripts/images.ts",
     "screenshots": "node scripts/screenshots.ts",
     "health": "node scripts/exhibit-health.ts",
     "readme-images": "node scripts/readme-images.ts"

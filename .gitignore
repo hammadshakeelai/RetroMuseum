@@ -1,6 +1,7 @@
 node_modules
 dist
 .astro
+public/images/
 test-results
 playwright-report
 exhibit-health.md

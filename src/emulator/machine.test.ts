@@ -3,8 +3,13 @@ import type { V86Block } from "../lib/v86-block.ts";
 import { CTRL_ALT_DEL, Machine, type Emulator, type MachineState } from "./machine.ts";
 
 const MB = 1024 * 1024;
-const block: V86Block = { fda: { url: "https://i.copy.sh/tetros.img", size: 512 } };
-const runtime = { wasmUrl: "/v86.wasm", biosUrl: "/bios/seabios.bin", vgaBiosUrl: "/bios/vgabios.bin" };
+const block: V86Block = { fda: { url: "tetros.img", size: 512 } };
+const runtime = {
+  wasmUrl: "/v86.wasm",
+  biosUrl: "/bios/seabios.bin",
+  vgaBiosUrl: "/bios/vgabios.bin",
+  imageBase: "/RetroMuseum/images/",
+};
 const container = {} as unknown as HTMLElement;
 
 class FakeEmulator implements Emulator {
@@ -73,11 +78,12 @@ function setup(options: { wasm?: boolean; create?: () => Promise<FakeEmulator> }
 }
 
 describe("Machine", () => {
-  it("passes the block to v86 unchanged, adding only the runtime, screen and autostart", async () => {
+  it("passes the block to v86 with its disk in the site's images folder, adding only the runtime, screen and autostart", async () => {
     const t = setup();
-    await t.machine.boot(block, runtime, container);
+    await t.machine.boot({ memory_size: 16777216, ...block }, runtime, container);
     expect(t.created[0]).toEqual({
-      ...block,
+      memory_size: 16777216,
+      fda: { url: "/RetroMuseum/images/tetros.img", size: 512 },
       wasm_path: "/v86.wasm",
       bios: { url: "/bios/seabios.bin" },
       vga_bios: { url: "/bios/vgabios.bin" },

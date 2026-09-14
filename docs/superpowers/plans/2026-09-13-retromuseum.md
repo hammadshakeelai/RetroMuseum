@@ -1599,7 +1599,7 @@ Expected: PASS.
 - a hosted exhibit: opens the harness and calls `boot` with its `v86` block (the screen is `#screen .v86-screen`);
 - a copy.sh exhibit: opens `copyShUrl(profile)` (the screen is `#screen_container`);
 - waits `screenshotWaitSeconds` (default 120);
-- types `screenshotInput`, if set, one `keyboard.press` per key from `keyPresses` in `scripts/screenshots/keys.ts` (Shift held for capitals and shifted symbols, because v86 only sees Shift from a Shift key event), then waits 3 seconds;
+- types `screenshotInput`, if set, one `keyboard.press` per key from `keyPresses` in `scripts/screenshots/keys.ts` (Shift held for capitals and shifted symbols, because v86 only sees Shift from a Shift key event), then waits 30 seconds, long enough for a kernel to boot after a loader prompt or a desktop to finish loading after a dialog is closed;
 - photographs the screen's `canvas` if it is visible, otherwise its text `div`;
 - passes when the photo isn't blank and, for a hosted exhibit, `error()` is `null`;
 - with `--write`, saves the PNG to `src/content/exhibits/screenshots/<slug>.png` and sets `downloadEstimateMB` (at least 1, rounded up) and `screenshot` in the file;

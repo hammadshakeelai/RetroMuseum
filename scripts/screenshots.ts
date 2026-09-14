@@ -80,7 +80,8 @@ for (const exhibit of exhibits) {
   const input = typeof exhibit.data.screenshotInput === "string" ? exhibit.data.screenshotInput : "";
   if (input) {
     for (const key of keyPresses(input)) await page.keyboard.press(key, { delay: 30 });
-    await page.waitForTimeout(3000);
+    // Long enough for what the input starts, such as a kernel booting after its loader prompt.
+    await page.waitForTimeout(30_000);
   }
 
   let reason = profile ? "" : ((await page.evaluate(() => window.harness.error())) ?? "");

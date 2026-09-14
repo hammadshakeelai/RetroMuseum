@@ -78,7 +78,7 @@ license: open-source        # open-source | proprietary
 summary: A graphical operating system written in assembly that fits on one floppy disk.   # max 140 chars
 downloadEstimateMB: 2       # measured by the screenshot script
 screenshotWaitSeconds: 60   # optional, default 120: how long the screenshot script waits for a screen
-screenshotInput: "help\n"   # optional: what the screenshot script types after waiting, 3 seconds before the photo
+screenshotInput: "help\n"   # optional: what the screenshot script types after waiting, 30 seconds before the photo
 facts:
   Boot media: 1.44 MB floppy
 tryThis:
@@ -217,7 +217,7 @@ Problems on copy.sh's own page are copy.sh's to show.
 - a hosted exhibit boots in a local harness page that serves `public/`, the way the site would;
 - a copy.sh exhibit opens `https://copy.sh/v86/?profile=<id>`.
 
-It waits that exhibit's `screenshotWaitSeconds` (default 120), types its `screenshotInput` if it has one and waits 3 more seconds, photographs the emulator screen, checks that the picture isn't blank, and prints a report with each exhibit's pass or fail result and the megabytes of disk images and snapshots downloaded. With `--write` it saves each passing PNG and records the megabytes in `downloadEstimateMB`. The maintainer reviews the screenshots by eye and commits them through a normal pull request.
+It waits that exhibit's `screenshotWaitSeconds` (default 120), types its `screenshotInput` if it has one and waits 30 more seconds, photographs the emulator screen, checks that the picture isn't blank, and prints a report with each exhibit's pass or fail result and the megabytes of disk images and snapshots downloaded. With `--write` it saves each passing PNG and records the megabytes in `downloadEstimateMB`. The maintainer reviews the screenshots by eye and commits them through a normal pull request.
 
 It runs locally on purpose: a pull request opened by a workflow using `GITHUB_TOKEN` does not trigger CI, so branch protection would block it.
 

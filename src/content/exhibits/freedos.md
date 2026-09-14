@@ -11,7 +11,6 @@ facts:
   First stable release: FreeDOS 1.0, 2006
   Kernel here: build 2040, compiled April 2012
   Command shell here: FreeCOM 0.82 pl 3, December 2003
-  Boot media: 720 KB floppy
 tryThis:
   - Type ver /r to see the kernel and shell versions
   - List the floppy's files with dir

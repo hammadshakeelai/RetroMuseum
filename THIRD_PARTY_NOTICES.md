@@ -56,6 +56,9 @@ These disk images are not stored in this repository. `npm run images` downloads 
 | KolibriOS | `kolibri.img` | https://i.copy.sh/kolibri.img (automatic build r9913, 13 April 2023) | GPL-2.0 | https://git.kolibrios.org/KolibriOS/kolibrios |
 | HelenOS | `HelenOS-0.14.1-ia32.iso` | https://www.helenos.org/releases/HelenOS-0.14.1-ia32.iso | BSD, with some GPL components | https://www.helenos.org/releases/HelenOS-0.14.1-src.tar.bz2 |
 | ELKS | `elks-0.9.2-hd32-fat.img` | https://github.com/ghaerr/elks/releases/download/v0.9.2/hd32-fat.img | GPL-2.0 | https://github.com/ghaerr/elks/tree/v0.9.2 |
+| Dusk OS | `duskos.img` | https://i.copy.sh/duskos.img | CC0-1.0 | https://git.sr.ht/~vdupras/duskos |
+| Oberon | `oberon.img` | https://i.copy.sh/oberon.img | ETH Oberon license (BSD-style) | Not recorded with the image |
+| Sortix | `sortix-1.0-i686.iso` | https://pub.sortix.org/sortix/release/1.0/builds/sortix-1.0-i686.iso | ISC | https://pub.sortix.org/sortix/release/1.0/source/sortix-1.0.tar.xz |
 
 If you hold rights to one of these and want it removed, open a [removal request](https://github.com/hammadshakeelai/RetroMuseum/issues/new?template=removal-request.yml).
 
